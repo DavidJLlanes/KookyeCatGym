@@ -63,6 +63,12 @@ interface AppContentProps {
   onLogout: () => void;
 }
 
+// Marca persistente: se activa cuando el borrado del active_workout en el
+// servidor falla incluso tras reintentar (ver deleteActiveWorkoutWithRetry).
+// Se comprueba al arrancar la app para intentar limpiarlo antes de mostrar
+// como "activo" un entrenamiento que en realidad ya se dio por finalizado.
+const ACTIVE_WORKOUT_DELETE_PENDING_KEY = 'hevy_active_workout_delete_pending';
+
 export default function AppContent({ currentUser, onLogout }: AppContentProps) {
   const [currentTab, setCurrentTab] = useState<'train' | 'routines' | 'exercises' | 'progress' | 'users'>('train');
 
@@ -172,13 +178,25 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
 
       try {
         // Try loading from API first
-        const [remoteEx, remoteRout, remoteLogs, remoteActive, exercisesModule] = await Promise.all([
+        const [remoteEx, remoteRout, remoteLogs, remoteActiveRaw, exercisesModule] = await Promise.all([
           api.getExercises().catch(() => null),
           api.getRoutines().catch(() => null),
           api.getLogs().catch(() => null),
           api.getActiveWorkout().catch(() => null),
           exercisesModulePromise,
         ]);
+        let remoteActive = remoteActiveRaw;
+
+        // Si en una sesión anterior no se pudo confirmar en el servidor el
+        // borrado del entrenamiento activo (fallo de red al finalizar o
+        // cancelar), lo reintentamos ahora, antes de mostrarlo como si
+        // siguiera en curso: evita que reaparezca con su startTime original
+        // y genere un segundo registro con una duración disparatada al
+        // volver a pararlo.
+        if (remoteActive && localStorage.getItem(ACTIVE_WORKOUT_DELETE_PENDING_KEY)) {
+          const cleared = await deleteActiveWorkoutWithRetry(2);
+          if (cleared) remoteActive = null;
+        }
         const { INITIAL_EXERCISES } = exercisesModule;
 
         // Exercises: sync with INITIAL_EXERCISES
@@ -366,6 +384,39 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
   // instante pero la escritura en el servidor se agrupa (evita 1 POST por tecla
   // y las condiciones de carrera por respuestas fuera de orden).
   const activeWorkoutSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Al finalizar/cancelar un entrenamiento hay que borrar su active_workout
+  // en el servidor. Si esa llamada falla (red inestable, app en segundo
+  // plano, móvil bloqueándose a media petición...) el entrenamiento queda
+  // "zombie" en el servidor con su startTime original: la próxima vez que se
+  // abra la app se mostrará como si siguiera activo, y al pararlo se genera
+  // un segundo registro con una duración disparatada (desde aquel startTime
+  // hasta ahora). Para evitarlo: reintentamos varias veces con espera
+  // creciente, y si aun así falla, dejamos una marca en localStorage para
+  // volver a intentarlo en cuanto la app arranque de nuevo, ANTES de confiar
+  // en lo que devuelva el servidor sobre si hay un entrenamiento activo.
+  const deleteActiveWorkoutWithRetry = async (maxAttempts = 3): Promise<boolean> => {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        await api.deleteActiveWorkout();
+        localStorage.removeItem(ACTIVE_WORKOUT_DELETE_PENDING_KEY);
+        localStorage.removeItem('hevy_active_workout');
+        return true;
+      } catch (err) {
+        if (attempt < maxAttempts - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+        } else {
+          console.error(
+            'No se pudo confirmar el borrado del entrenamiento activo en el servidor tras varios intentos; se reintentará al volver a abrir la app.',
+            err
+          );
+          localStorage.setItem(ACTIVE_WORKOUT_DELETE_PENDING_KEY, '1');
+        }
+      }
+    }
+    return false;
+  };
+
   const saveActiveWorkoutState = (state: typeof activeWorkout) => {
     setActiveWorkout(state);
 
@@ -376,9 +427,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
 
     // Finalizar/cancelar (state=null) o iniciar: guardar de inmediato
     if (state === null) {
-      api.saveActiveWorkout(null).catch(() => {
-        localStorage.removeItem('hevy_active_workout');
-      });
+      deleteActiveWorkoutWithRetry();
       return;
     }
 
