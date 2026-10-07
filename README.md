@@ -1,13 +1,53 @@
-# KookyeCatGym
+<p align="center">
+  <a href="https://kookyecatgym.com/">
+    <img src="docs/assets/cover.png" alt="KookyeCatGym — Entrena con constancia. Visualiza tu progreso." width="100%">
+  </a>
+</p>
 
-Aplicación web de seguimiento de entrenamientos de gimnasio, autoalojable y
-multiusuario. Permite crear rutinas, registrar series/repeticiones/pesos,
-ver estadísticas de progreso (incluyendo 1RM estimado), un calendario de
-constancia y generar tarjetas para compartir en redes.
+<h1 align="center">KookyeCatGym</h1>
 
-- **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS
-- **Backend:** PHP + SQLite (API REST sencilla)
-- **PWA:** instalable, con service worker
+<p align="center">
+  <strong>Tu entrenamiento, tu progreso.</strong><br>
+  Crea tus rutinas, registra cada serie y descubre cómo mejoras.<br>
+  Una app web autoalojable y multiusuario para llevar tu gimnasio contigo.
+</p>
+
+<p align="center">
+  <a href="https://kookyecatgym.com/"><img src="https://img.shields.io/badge/WEB-kookyecatgym.com-083398?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Web: kookyecatgym.com"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/LICENCIA-MIT-2563eb?style=for-the-badge" alt="Licencia del código: MIT"></a>
+  <a href="public/manifest.json"><img src="https://img.shields.io/badge/PWA-INSTALABLE-7c3aed?style=for-the-badge&logo=pwa&logoColor=white" alt="PWA instalable"></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white" alt="React 19">
+  <img src="https://img.shields.io/badge/TypeScript-5.8-3178c6?logo=typescript&logoColor=white" alt="TypeScript 5.8">
+  <img src="https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white" alt="Vite 6">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-4-06b6d4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS 4">
+  <img src="https://img.shields.io/badge/PHP-8%2B-777bb4?logo=php&logoColor=white" alt="PHP 8 o superior">
+  <img src="https://img.shields.io/badge/SQLite-003b57?logo=sqlite&logoColor=white" alt="SQLite">
+</p>
+
+<h3 align="center"><a href="https://kookyecatgym.com/">🚀 Abrir KookyeCatGym</a></h3>
+
+<p align="center">
+  <a href="#requisitos">Instalación</a> ·
+  <a href="server/README.md">Guía del backend</a> ·
+  <a href="https://github.com/DavidJLlanes/kookyecatgym/issues">Reportar un problema</a> ·
+  <a href="LICENSE">Licencia</a>
+</p>
+
+---
+
+## Qué puedes hacer
+
+| | |
+| --- | --- |
+| 🏋️ **Rutinas a tu medida** | Organiza tus ejercicios y prepara cada sesión. |
+| 📝 **Registro de entrenamientos** | Guarda series, repeticiones y pesos. |
+| 📈 **Progreso visible** | Consulta estadísticas y tu 1RM estimado. |
+| 📅 **Constancia** | Revisa tu actividad en el calendario de entrenamientos. |
+| 🖼️ **Tarjetas para compartir** | Genera tarjetas de tus entrenamientos y resultados para redes. |
+| 🏠 **Tu propio servidor** | Aloja la app con React, PHP y SQLite, con soporte multiusuario. |
 
 > Este repositorio contiene **solo el código**. Las animaciones de ejercicios
 > y las imágenes anatómicas **no se incluyen** (ver [Imágenes](#imágenes)).
