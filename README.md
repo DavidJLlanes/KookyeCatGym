@@ -1,7 +1,5 @@
 <p align="center">
-  <a href="https://kookyecatgym.com/">
-    <img src="docs/assets/cover.png" alt="KookyeCatGym — Entrena con constancia. Visualiza tu progreso." width="100%">
-  </a>
+  <img src="docs/assets/cover.png" alt="KookyeCatGym — Entrena con constancia. Visualiza tu progreso." width="100%">
 </p>
 
 <h1 align="center">KookyeCatGym</h1>
@@ -13,7 +11,6 @@
 </p>
 
 <p align="center">
-  <a href="https://kookyecatgym.com/"><img src="https://img.shields.io/badge/WEB-kookyecatgym.com-083398?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Web: kookyecatgym.com"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/LICENCIA-MIT-2563eb?style=for-the-badge" alt="Licencia del código: MIT"></a>
   <a href="public/manifest.json"><img src="https://img.shields.io/badge/PWA-INSTALABLE-7c3aed?style=for-the-badge&logo=pwa&logoColor=white" alt="PWA instalable"></a>
 </p>
@@ -26,8 +23,6 @@
   <img src="https://img.shields.io/badge/PHP-8%2B-777bb4?logo=php&logoColor=white" alt="PHP 8 o superior">
   <img src="https://img.shields.io/badge/SQLite-003b57?logo=sqlite&logoColor=white" alt="SQLite">
 </p>
-
-<h3 align="center"><a href="https://kookyecatgym.com/">🚀 Abrir KookyeCatGym</a></h3>
 
 <p align="center">
   <a href="#requisitos">Instalación</a> ·
