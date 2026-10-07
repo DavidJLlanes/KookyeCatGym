@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/cover.png" alt="KookyeCatGym — Entrena con constancia. Visualiza tu progreso." width="100%">
+  <img src="docs/assets/cover-zgym.png" alt="KookyeCatGym — Entrena con constancia. Visualiza tu progreso." width="100%">
 </p>
 
 <h1 align="center">KookyeCatGym</h1>
