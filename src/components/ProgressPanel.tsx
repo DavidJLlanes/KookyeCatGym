@@ -1,21 +1,53 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { TrendingUp, BarChart2, Award, Calculator, Target, Dumbbell, Calendar, ChevronDown, Flame, Percent, Clock, Timer, Trophy, ListOrdered, ArrowUp, ArrowDown, Share2 } from 'lucide-react';
+import { TrendingUp, BarChart2, Award, Calculator, Target, Dumbbell, Calendar, ChevronDown, Flame, Percent, Clock, Timer, Trophy, ListOrdered, ArrowUp, ArrowDown, Share2, Map, Sparkles, Images } from 'lucide-react';
+import BodyProgressSection, { BodyProgressSectionProps } from './BodyProgressSection';
+import type { MediaItem } from '../api/client';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell, Legend } from 'recharts';
 import { WorkoutLog, Exercise } from '../types';
 import { MUSCLE_GROUPS, getMuscleColor } from '../data/exerciseMeta';
 import DecimalInput from './DecimalInput';
 import { formatEsNumber, formatEsCompactKg } from '../utils/number';
 import { computeAllTimeRecords, computeSessionRecords, PrEvent } from '../utils/records';
+import { calculateMuscleStats, calculateBodyLoad } from '../utils/muscleStats';
+import { get1RMHistory } from '../utils/oneRMEstimate';
+import { generateYearHeatmap } from '../utils/activityHeatmap';
+import { ProgressionRule, prefillWithProgression } from '../utils/progressionRules';
+import { getLastPerformanceSets } from '../utils/lastPerformance';
+import { calculateAllBalances as calculateMuscleBalances } from '../utils/muscleBalance';
 import ShareCardModal from './ShareCardModal';
 import ConstancyCalendar from './ConstancyCalendar';
+import MuscleMapVisual from './MuscleMapVisual';
+import OneRMChart from './OneRMChart';
+import ActivityHeatmap from './ActivityHeatmap';
+import ProgressionRulesPanel from './ProgressionRulesPanel';
+import MuscleBalanceReport from './MuscleBalanceReport';
+import AICoachPanel from './AICoachPanel';
 
 interface ProgressPanelProps {
   logs: WorkoutLog[];
   exercises: Exercise[];
+  progressionRules: ProgressionRule[];
+  onSaveProgressionRule: (rule: ProgressionRule) => Promise<void>;
+  onDeleteProgressionRule: (exerciseId: string) => Promise<void>;
+  // Fotos de progreso físico (apartado "Físico")
+  progressPhotos?: MediaItem[];
+  onUploadProgressPhoto?: BodyProgressSectionProps['onUpload'];
+  onUpdatePhoto?: BodyProgressSectionProps['onUpdate'];
+  onDeletePhoto?: (id: string) => Promise<void>;
 }
 
-export default function ProgressPanel({ logs, exercises }: ProgressPanelProps) {
+export default function ProgressPanel({
+  logs,
+  exercises,
+  progressionRules,
+  onSaveProgressionRule,
+  onDeleteProgressionRule,
+  progressPhotos = [],
+  onUploadProgressPhoto,
+  onUpdatePhoto,
+  onDeletePhoto,
+}: ProgressPanelProps) {
   // Muscle focus: calculates completed sets per muscle group
   const muscleFocusData = useMemo(() => {
     const focus: Record<string, number> = {
@@ -57,6 +89,41 @@ export default function ProgressPanel({ logs, exercises }: ProgressPanelProps) {
 
   const [selectedExId, setSelectedExId] = useState<string>('');
   const [metricType, setMetricType] = useState<'volume' | 'max_weight' | 'total_reps' | 'one_rep_max'>('volume');
+  const [selectedMuscle, setSelectedMuscle] = useState<string | undefined>();
+  const [progressTab, setProgressTab] = useState<'overview' | 'muscle' | 'physique' | 'oneRM' | 'heatmap' | 'progression' | 'balance' | 'coach'>('overview');
+
+  // Muscle Map Stats
+  const [musclePeriod, setMusclePeriod] = useState<number | null>(30);
+  const muscleStats = useMemo(() => calculateMuscleStats(logs, exercises, musclePeriod), [logs, exercises, musclePeriod]);
+  const bodyLoad = useMemo(() => calculateBodyLoad(logs, exercises, musclePeriod), [logs, exercises, musclePeriod]);
+  const lastLogDate = useMemo(
+    () => logs.reduce<string | null>((latest, l) => (!latest || new Date(l.date) > new Date(latest) ? l.date : latest), null),
+    [logs]
+  );
+
+  // Regla de progresión del ejercicio seleccionado y vista previa de la próxima sesión
+  const selectedRule = useMemo(
+    () => progressionRules.find((r) => r.exerciseId === selectedExId),
+    [progressionRules, selectedExId]
+  );
+  const selectedLastSets = useMemo(() => getLastPerformanceSets(selectedExId, logs), [selectedExId, logs]);
+  const selectedNextSets = useMemo(
+    () => (selectedLastSets ? prefillWithProgression(selectedLastSets, selectedLastSets, selectedRule) : null),
+    [selectedLastSets, selectedRule]
+  );
+
+  // Muscle Balance Ratios
+  const muscleBalances = useMemo(() => calculateMuscleBalances(logs, exercises), [logs, exercises]);
+
+  // 1RM History for selected exercise
+  const selectedExercise1RM = useMemo(() => {
+    if (!selectedExId) return null;
+    return get1RMHistory(selectedExId, logs, exercises);
+  }, [selectedExId, logs, exercises]);
+
+  // Activity Heatmap for current year
+  const currentYear = new Date().getFullYear();
+  const yearHeatmap = useMemo(() => generateYearHeatmap(currentYear, logs), [logs, currentYear]);
 
   // Selecciona automáticamente un ejercicio válido cuando cargan los datos
   // (evita quedarse en un ID inexistente y mostrar el gráfico vacío al entrar).
@@ -395,7 +462,170 @@ export default function ProgressPanel({ logs, exercises }: ProgressPanelProps) {
         </button>
       </div>
 
-      {/* 1. Quick Stats Banner */}
+      {/* 0.5. Progress View Tabs */}
+      <div className="flex gap-2 border-b border-slate-800 overflow-x-auto">
+        {[
+          { id: 'overview', label: 'Resumen', icon: TrendingUp },
+          { id: 'muscle', label: 'Músculos', icon: Map },
+          ...(onUploadProgressPhoto ? [{ id: 'physique', label: 'Físico', icon: Images }] : []),
+          { id: 'oneRM', label: '1RM', icon: Trophy },
+          { id: 'heatmap', label: 'Actividad', icon: Calendar },
+          { id: 'progression', label: 'Progresión', icon: ArrowUp },
+          { id: 'balance', label: 'Balance', icon: Target },
+          { id: 'coach', label: 'Coach IA', icon: Sparkles },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = progressTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setProgressTab(tab.id as any)}
+              className={`px-4 py-2 border-b-2 transition-colors flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+                isActive
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-300'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content based on selected tab */}
+      {progressTab === 'muscle' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          <div className="flex gap-2 flex-wrap">
+            {([[7, '7 días'], [30, '30 días'], [90, '3 meses'], [null, 'Todo']] as [number | null, string][]).map(([days, label]) => (
+              <button
+                key={label}
+                onClick={() => setMusclePeriod(days)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  musclePeriod === days ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {Object.keys(bodyLoad).length === 0 && (
+            <div className="p-3 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-400">
+              No hay series registradas en este periodo.
+              {lastLogDate && <> Tu último entrenamiento fue el {new Date(lastLogDate).toLocaleDateString('es-ES')}; prueba con un periodo más largo.</>}
+            </div>
+          )}
+          <MuscleMapVisual
+            stats={muscleStats}
+            load={bodyLoad}
+            selectedMuscle={selectedMuscle}
+            onMuscleClick={setSelectedMuscle}
+          />
+        </motion.div>
+      )}
+
+      {progressTab === 'physique' && onUploadProgressPhoto && onUpdatePhoto && onDeletePhoto && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <BodyProgressSection
+            photos={progressPhotos}
+            onUpload={onUploadProgressPhoto}
+            onUpdate={onUpdatePhoto}
+            onDelete={onDeletePhoto}
+          />
+        </motion.div>
+      )}
+
+      {progressTab === 'oneRM' && selectedExercise1RM && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          <div className="p-4 bg-slate-900 rounded-lg border border-slate-800">
+            <label className="block text-xs font-bold text-slate-400 mb-2">Selecciona ejercicio</label>
+            <select
+              value={selectedExId}
+              onChange={(e) => setSelectedExId(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-sm"
+            >
+              {completedExerciseIds.map((exId) => {
+                const ex = exercises.find((e) => e.id === exId);
+                return (
+                  <option key={exId} value={exId}>
+                    {ex?.name}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          <OneRMChart data={selectedExercise1RM} />
+        </motion.div>
+      )}
+
+      {progressTab === 'heatmap' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <ActivityHeatmap data={yearHeatmap} />
+        </motion.div>
+      )}
+
+      {progressTab === 'progression' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          <div className="p-4 bg-slate-900 rounded-lg border border-slate-800">
+            <label className="block text-xs font-bold text-slate-400 mb-2">Selecciona ejercicio</label>
+            <select
+              value={selectedExId}
+              onChange={(e) => setSelectedExId(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-sm"
+            >
+              {completedExerciseIds.map((exId) => {
+                const ex = exercises.find((e) => e.id === exId);
+                return (
+                  <option key={exId} value={exId}>
+                    {ex?.name}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {selectedExId && (
+            <ProgressionRulesPanel
+              key={selectedExId}
+              exerciseId={selectedExId}
+              exerciseName={exercises.find((e) => e.id === selectedExId)?.name || ''}
+              rule={selectedRule}
+              lastSets={selectedLastSets}
+              nextSets={selectedNextSets}
+              onSave={onSaveProgressionRule}
+              onDelete={onDeleteProgressionRule}
+            />
+          )}
+
+          <div className="p-4 bg-blue-950/20 rounded-lg border border-blue-500/30 text-xs text-blue-300 space-y-2">
+            <strong>💡 Tipos de Progresión:</strong>
+            <ul className="space-y-1 list-disc list-inside text-blue-400">
+              <li><strong>Lineal:</strong> Suma peso cada sesión (+2.5kg)</li>
+              <li><strong>Greyskull LP:</strong> Aumenta reps primero, luego peso</li>
+              <li><strong>Doble Progresión:</strong> Aumenta reps hasta objetivo, luego peso</li>
+            </ul>
+          </div>
+        </motion.div>
+      )}
+
+      {progressTab === 'coach' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <AICoachPanel logs={logs} exercises={exercises} progressionRules={progressionRules} />
+        </motion.div>
+      )}
+
+      {progressTab === 'balance' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <MuscleBalanceReport
+            balances={muscleBalances}
+            isEmpty={muscleBalances.length === 0}
+          />
+        </motion.div>
+      )}
+
+      {progressTab === 'overview' && (
+        <>
+          {/* 1. Quick Stats Banner */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg flex items-center gap-3">
           <div className="p-3 bg-blue-950/60 text-blue-400 rounded-xl border border-blue-500/20">
@@ -870,6 +1100,8 @@ export default function ProgressPanel({ logs, exercises }: ProgressPanelProps) {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       <ShareCardModal
         isOpen={shareModalOpen}

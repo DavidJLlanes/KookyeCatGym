@@ -19,6 +19,9 @@ export interface WorkoutSet {
   reps: number;
   completed: boolean;
   isWarmup?: boolean;
+  rpe?: number; // Rate of Perceived Exertion (0-10) or RIR equivalent
+  // Tipo especial de serie de trabajo (el calentamiento sigue siendo isWarmup)
+  setType?: 'drop' | 'failure' | 'restpause';
 }
 
 export interface WorkoutExercise {
@@ -26,6 +29,8 @@ export interface WorkoutExercise {
   exerciseId: string;
   sets: WorkoutSet[];
   restTime?: number; // custom rest time in seconds for this exercise
+  // Ejercicios consecutivos con el mismo supersetId forman una superserie
+  supersetId?: string;
 }
 
 export interface Routine {

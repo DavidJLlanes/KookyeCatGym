@@ -1,7 +1,8 @@
 <?php
 require_once 'config.php';
+require_once 'admin_lib.php';
 
-global $pdo;
+global $pdo, $dataDir;
 
 $route = $_GET['_route'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -60,6 +61,8 @@ elseif ($route === 'users' && $method === 'POST') {
         ':role' => $role,
     ]);
 
+    auditLog($pdo, 'user_created', $currentUser['id'], $currentUser['username'], "$username ($role)");
+
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = :id");
     $stmt->execute([':id' => $id]);
     sendJson(publicUserRow($stmt->fetch(PDO::FETCH_ASSOC)), 201);
@@ -85,7 +88,26 @@ elseif ($route === 'users' && $method === 'DELETE') {
     $pdo->prepare("DELETE FROM active_workout WHERE user_id = :id")->execute([':id' => $id]);
     $pdo->prepare("DELETE FROM exercises WHERE user_id = :id")->execute([':id' => $id]);
     $pdo->prepare("DELETE FROM sessions WHERE user_id = :id")->execute([':id' => $id]);
+
+    // Datos de las funciones nuevas (cada tabla solo existe si se ha usado esa función)
+    foreach (['progression_rules', 'push_subscriptions', 'rest_alerts', 'coach_runs'] as $table) {
+        if (tableExists($pdo, $table)) {
+            $pdo->prepare("DELETE FROM $table WHERE user_id = :id")->execute([':id' => $id]);
+        }
+    }
+    if (tableExists($pdo, 'exercise_media')) {
+        $media = $pdo->prepare("SELECT * FROM exercise_media WHERE user_id = :id");
+        $media->execute([':id' => $id]);
+        foreach ($media->fetchAll(PDO::FETCH_ASSOC) as $item) {
+            deleteMediaItem($pdo, $dataDir . '/media', $item);
+        }
+    }
+
+    $deleted = $pdo->prepare("SELECT username FROM users WHERE id = :id");
+    $deleted->execute([':id' => $id]);
+    $deletedName = (string) $deleted->fetchColumn();
     $pdo->prepare("DELETE FROM users WHERE id = :id")->execute([':id' => $id]);
+    auditLog($pdo, 'user_deleted', $currentUser['id'], $currentUser['username'], $deletedName);
 
     sendJson(['success' => true]);
 }
@@ -104,6 +126,10 @@ elseif ($route === 'users/role' && $method === 'POST') {
 
     $stmt = $pdo->prepare("UPDATE users SET role = :role WHERE id = :id");
     $stmt->execute([':role' => $role, ':id' => $id]);
+
+    $target = $pdo->prepare("SELECT username FROM users WHERE id = :id");
+    $target->execute([':id' => $id]);
+    auditLog($pdo, 'role_changed', $currentUser['id'], $currentUser['username'], $target->fetchColumn() . " → $role");
 
     sendJson(['success' => true]);
 }

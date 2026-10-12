@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ClipboardList, Plus, Play, Trash2, Edit, Dumbbell, Clock, X, ChevronRight, Check, ChevronUp, ChevronDown, Folder, FolderOpen, FolderPlus } from 'lucide-react';
+import { ClipboardList, Plus, Play, Trash2, Edit, Dumbbell, Clock, X, ChevronRight, Check, ChevronUp, ChevronDown, Folder, FolderOpen, FolderPlus, Link2, Link2Off } from 'lucide-react';
 import { Routine, Exercise, WorkoutExercise, WorkoutSet } from '../types';
 import ExerciseLibraryPanel from './ExerciseLibraryPanel';
 import DecimalInput from './DecimalInput';
 import ConfirmDialog from './ConfirmDialog';
 import { useLightbox } from '../context/LightboxContext';
 import { getStaticThumbUrl } from '../utils/media';
+import { SET_KINDS, SetKind, kindOf, withKind, setLabel, supersetLetters, toggleSupersetWithNext, normalizeSupersets } from '../utils/setTypes';
+import AnchoredPopover from './AnchoredPopover';
+import SetKindMenu from './SetKindMenu';
 
 interface RoutinesPanelProps {
   routines: Routine[];
@@ -343,6 +346,8 @@ export default function RoutinesPanel({
   const [routineFolder, setRoutineFolder] = useState('');
   const [addingNewFolder, setAddingNewFolder] = useState(false);
   const [selectedWorkoutExercises, setSelectedWorkoutExercises] = useState<WorkoutExercise[]>([]);
+  // Menú de tipo de serie abierto: serie y botón junto al que se muestra
+  const [kindPicker, setKindPicker] = useState<{ setId: string; anchor: HTMLElement } | null>(null);
   const [showAddExerciseSelector, setShowAddExerciseSelector] = useState(false);
 
   // Modal de creación rápida de carpeta desde la cabecera del listado
@@ -511,7 +516,7 @@ export default function RoutinesPanel({
   };
 
   const handleRemoveExercise = (instanceId: string) => {
-    setSelectedWorkoutExercises(selectedWorkoutExercises.filter((we) => we.id !== instanceId));
+    setSelectedWorkoutExercises(normalizeSupersets(selectedWorkoutExercises.filter((we) => we.id !== instanceId)));
   };
 
   const handleMoveExercise = (index: number, direction: 'up' | 'down') => {
@@ -520,7 +525,20 @@ export default function RoutinesPanel({
 
     const updated = [...selectedWorkoutExercises];
     [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
-    setSelectedWorkoutExercises(updated);
+    setSelectedWorkoutExercises(normalizeSupersets(updated));
+  };
+
+  const handleToggleSuperset = (index: number) => {
+    setSelectedWorkoutExercises(toggleSupersetWithNext(selectedWorkoutExercises, index));
+  };
+
+  const handleSetKind = (instanceId: string, setId: string, kind: SetKind) => {
+    setKindPicker(null);
+    setSelectedWorkoutExercises(
+      selectedWorkoutExercises.map((we) =>
+        we.id !== instanceId ? we : { ...we, sets: we.sets.map((s) => (s.id === setId ? withKind(s, kind) : s)) }
+      )
+    );
   };
 
   const handleAddSet = (instanceId: string) => {
@@ -594,6 +612,8 @@ export default function RoutinesPanel({
     setIsEditing(false);
     setEditingRoutine(null);
   };
+
+  const editorSupersetLetters = supersetLetters(selectedWorkoutExercises);
 
   return (
     <div id="routines-panel" className="space-y-6 text-slate-200">
@@ -883,9 +903,22 @@ export default function RoutinesPanel({
                   {selectedWorkoutExercises.map((we, index) => {
                     const ex = exercises.find((e) => e.id === we.exerciseId);
                     if (!ex) return null;
+                    const supersetLetter = editorSupersetLetters[we.id];
+                    const hasNext = index < selectedWorkoutExercises.length - 1;
+                    const linkedWithNext = !!we.supersetId && we.supersetId === selectedWorkoutExercises[index + 1]?.supersetId;
 
                     return (
-                      <div key={we.id} className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden">
+                      <div
+                        key={we.id}
+                        className={`bg-slate-900 border rounded-2xl shadow-lg overflow-hidden ${
+                          supersetLetter ? 'border-violet-500/50 border-l-4 border-l-violet-500' : 'border-slate-800'
+                        }`}
+                      >
+                        {supersetLetter && (
+                          <div className="px-3 py-1 bg-violet-950/40 border-b border-violet-500/30 text-[10px] font-black uppercase tracking-wider text-violet-300">
+                            Superserie {supersetLetter} · sin descanso entre ejercicios del grupo
+                          </div>
+                        )}
                         {/* Title Row */}
                         <div className="p-3 bg-slate-950 border-b border-slate-800 flex items-center gap-3">
                           {/* Reordenar ejercicio */}
@@ -917,6 +950,21 @@ export default function RoutinesPanel({
                               </span>
                               <div className="font-bold text-white text-sm truncate">{ex.name}</div>
                             </div>
+                            {hasNext && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSuperset(index)}
+                                title={linkedWithNext ? 'Separar del siguiente ejercicio' : 'Hacer superserie con el siguiente ejercicio'}
+                                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer shrink-0 ${
+                                  linkedWithNext
+                                    ? 'bg-violet-950/40 border-violet-500/40 text-violet-300 hover:bg-violet-900/40'
+                                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                {linkedWithNext ? <Link2Off className="h-3 w-3" /> : <Link2 className="h-3 w-3" />}
+                                <span className="hidden sm:inline">{linkedWithNext ? 'Separar' : 'Superserie'}</span>
+                              </button>
+                            )}
                             <button
                               onClick={() => handleRemoveExercise(we.id)}
                               className="text-slate-500 hover:text-rose-400 p-1 rounded-lg hover:bg-slate-850 transition-all cursor-pointer shrink-0"
@@ -954,9 +1002,22 @@ export default function RoutinesPanel({
                           {/* Sets Rows */}
                           {we.sets.map((set, setIndex) => (
                             <div key={set.id} className="grid grid-cols-12 gap-2 items-center text-center">
-                              <span className="col-span-2 text-xs font-bold text-slate-400 text-left">
-                                #{setIndex + 1}
-                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  setKindPicker(kindPicker?.setId === set.id ? null : { setId: set.id, anchor: e.currentTarget })
+                                }
+                                title="Tipo de serie"
+                                className="col-span-2 text-xs font-bold text-left cursor-pointer whitespace-nowrap"
+                                style={{ color: SET_KINDS.find((k) => k.kind === kindOf(set))?.color }}
+                              >
+                                {setLabel(we.sets, setIndex)}
+                              </button>
+                              {kindPicker?.setId === set.id && (
+                                <AnchoredPopover anchor={kindPicker.anchor} width={256} onClose={() => setKindPicker(null)}>
+                                  <SetKindMenu current={kindOf(set)} onSelect={(k) => handleSetKind(we.id, set.id, k)} />
+                                </AnchoredPopover>
+                              )}
                               
                               <div className="col-span-4">
                                 <DecimalInput

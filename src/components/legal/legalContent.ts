@@ -15,7 +15,7 @@ export interface LegalDocument {
 const TITULAR = '[TITULAR]';
 const CONTACTO = '[correo de contacto]';
 const UBICACION = '[ubicación]';
-const LAST_UPDATED = '15 de julio de 2026';
+const LAST_UPDATED = '7 de octubre de 2026';
 
 export const AVISO_LEGAL: LegalDocument = {
   page: 'aviso',
@@ -100,7 +100,7 @@ export const POLITICA_PRIVACIDAD: LegalDocument = {
     {
       heading: '3. Registro de usuarios',
       paragraphs: [
-        'KookyeCatGym permite crear una cuenta individual mediante nombre de usuario, correo electrónico y contraseña. Cada cuenta es independiente: las rutinas, los entrenamientos y el historial de progreso que introduce cada usuario son privados y no son visibles para el resto de usuarios. El personal administrador únicamente puede ver el nombre de usuario, el correo electrónico, el rol y la fecha de alta de cada cuenta, con el fin de gestionar el acceso a la Aplicación; en ningún caso accede a las rutinas, entrenamientos o progreso personal de otros usuarios.',
+        'KookyeCatGym permite crear una cuenta individual mediante nombre de usuario, correo electrónico y contraseña. Cada cuenta es independiente: las rutinas, los entrenamientos y el historial de progreso que introduce cada usuario son privados y no son visibles para el resto de usuarios. El personal administrador únicamente puede ver el nombre de usuario, el correo electrónico, el rol y la fecha de alta de cada cuenta, con el fin de gestionar el acceso a la Aplicación; en ningún caso accede a las rutinas, entrenamientos o progreso personal de otros usuarios, ni a sus fotos o vídeos. La Aplicación no ofrece al administrador ninguna forma de ver las fotos de otros usuarios: solo muestra, a efectos técnicos, cuántas hay y cuánto espacio ocupan.',
       ],
     },
     {
@@ -108,13 +108,16 @@ export const POLITICA_PRIVACIDAD: LegalDocument = {
       paragraphs: [
         'a) Datos de registro y acceso: nombre de usuario, dirección de correo electrónico y contraseña. La contraseña nunca se almacena en texto plano: se aplica un hash mediante el algoritmo bcrypt, de forma que ni el titular ni ningún tercero pueden consultarla en claro. Al iniciar sesión se genera además un token de sesión asociado a la cuenta, necesario para mantener al usuario identificado mientras usa la Aplicación.',
         'b) Datos introducidos voluntariamente por el usuario en el uso de la Aplicación: rutinas de entrenamiento, ejercicios, series, repeticiones, pesos, tiempos de descanso y notas de progreso. Estos datos son introducidos y gestionados libremente por el propio usuario y son privados frente al resto de usuarios.',
-        'c) Datos técnicos: la Aplicación almacena localmente, en el propio dispositivo del usuario (localStorage del navegador), información necesaria para su funcionamiento, como el token de sesión, los datos básicos de la cuenta (nombre de usuario, correo electrónico y rol) para no tener que solicitarlos en cada carga, el estado de un entrenamiento activo o preferencias de visualización.',
+        'c) Fotos y vídeos subidos voluntariamente por el usuario: fotos o vídeos de ejercicios, fotos de sus entrenamientos y fotos de progreso físico (por ejemplo, de pecho, brazos o abdomen), junto con la fecha de la foto, el grupo muscular y, si el usuario la indica, la medida del músculo en centímetros o milímetros. Antes de subirlas, las fotos se reducen de tamaño en el propio dispositivo. Estas fotos y medidas son privadas: solo las ve el usuario que las sube.',
+        'd) Inicio de sesión con Face ID, Touch ID, huella o Windows Hello (passkeys), si el usuario decide activarlo: la Aplicación no recibe ni almacena en ningún momento la imagen de la cara, la huella dactilar ni ningún otro dato biométrico. El reconocimiento lo realiza el propio dispositivo del usuario, que solo comunica a la Aplicación una firma criptográfica. El servidor guarda únicamente una clave pública, el nombre del dispositivo (por ejemplo, "iPhone") y las fechas de alta y último uso, que el usuario puede consultar y eliminar en cualquier momento.',
+        'e) Datos técnicos: la Aplicación almacena localmente, en el propio dispositivo del usuario (localStorage del navegador), información necesaria para su funcionamiento, como el token de sesión, los datos básicos de la cuenta (nombre de usuario, correo electrónico y rol) para no tener que solicitarlos en cada carga, el estado de un entrenamiento activo o preferencias de visualización.',
       ],
     },
     {
       heading: '5. Categorías especiales de datos',
       paragraphs: [
         'La Aplicación no solicita ni requiere datos relativos a la salud. No obstante, si el usuario decide introducir voluntariamente información que pudiera considerarse un dato de salud (por ejemplo, notas personales sobre una lesión), dicho dato quedará bajo su exclusivo control y únicamente será tratado con la finalidad de prestar el servicio solicitado por el propio usuario, en base al consentimiento explícito que otorga al introducir voluntariamente dicha información (artículo 9.2.a del RGPD).',
+        'Las fotos de progreso físico y las medidas corporales pueden revelar aspectos del cuerpo o de la salud del usuario, por lo que se tratan con el mismo cuidado que los datos de categoría especial. Subirlas es siempre opcional y se basa en el consentimiento explícito del usuario, que puede retirar en cualquier momento borrando las fotos o las medidas desde la propia Aplicación. Estas fotos no se usan para ninguna otra finalidad, no se analizan de forma automatizada, no se comparten con terceros y no son visibles para el administrador ni para otros usuarios.',
       ],
     },
     {
@@ -122,6 +125,8 @@ export const POLITICA_PRIVACIDAD: LegalDocument = {
       paragraphs: [
         'Gestionar el registro, la autenticación y la cuenta del usuario, permitiéndole acceder a la Aplicación.',
         'Almacenar y mostrar al usuario sus propias rutinas, entrenamientos y estadísticas de progreso.',
+        'Guardar y mostrar al usuario sus propias fotos y medidas, para que pueda seguir su evolución.',
+        'Permitir, si el usuario lo activa, el inicio de sesión con Face ID, Touch ID, huella o Windows Hello.',
         'Atender las solicitudes o consultas que el usuario dirija al correo de contacto.',
       ],
     },
@@ -136,6 +141,7 @@ export const POLITICA_PRIVACIDAD: LegalDocument = {
       heading: '8. Conservación de los datos',
       paragraphs: [
         'Los datos se conservarán mientras el usuario mantenga su cuenta activa. El usuario podrá solicitar en cualquier momento la eliminación de sus datos y de su cuenta escribiendo al correo de contacto indicado; una vez atendida la solicitud, los datos se suprimirán salvo que exista una obligación legal de conservarlos por un plazo mayor.',
+        'El usuario puede borrar en cualquier momento, desde la propia Aplicación, cualquiera de sus fotos o vídeos. Al borrarla, el archivo se elimina del servidor (salvo que el propio usuario tenga ese mismo archivo guardado en otro lugar de la Aplicación) y deja de estar accesible.',
       ],
     },
     {
@@ -161,6 +167,7 @@ export const POLITICA_PRIVACIDAD: LegalDocument = {
       heading: '12. Seguridad de los datos',
       paragraphs: [
         'Se adoptan medidas técnicas y organizativas razonables para proteger los datos personales, incluyendo el hash seguro de las contraseñas (bcrypt) y el uso de conexiones cifradas (HTTPS) en todas las comunicaciones con la Aplicación. No obstante, ninguna transmisión de datos por Internet puede garantizarse como absolutamente segura al 100%.',
+        'Las fotos y vídeos se guardan en el servidor fuera de la carpeta pública de la web. Para mostrarlos, la Aplicación usa un enlace único formado por 64 caracteres aleatorios que no se puede adivinar; solo lo conoce la cuenta que subió la foto. Se recomienda al usuario no compartir ese enlace, ya que cualquier persona que lo tuviera podría ver la foto.',
         'En caso de que se produjera una violación de la seguridad de los datos que suponga un riesgo para los derechos y libertades de los usuarios, el titular lo notificará a la Agencia Española de Protección de Datos en el plazo de 72 horas desde que tenga constancia de ella, conforme al artículo 33 del RGPD, y comunicará la incidencia a los usuarios afectados cuando exista un alto riesgo para sus derechos, conforme al artículo 34 del RGPD.',
       ],
     },
@@ -215,7 +222,7 @@ export const TERMINOS_CONDICIONES: LegalDocument = {
     {
       heading: '4. Uso correcto de la Aplicación',
       paragraphs: [
-        'El usuario se compromete a utilizar la Aplicación de conformidad con la ley, la moral y el orden público, así como con estos Términos. Queda prohibido: utilizar la Aplicación con fines fraudulentos o ilícitos; intentar acceder a cuentas, sistemas o datos de otros usuarios sin autorización; realizar ingeniería inversa, descompilar o intentar extraer el código fuente de la Aplicación más allá de lo permitido por la ley; e introducir o difundir a través de la Aplicación contenido ilícito, ofensivo o que vulnere derechos de terceros.',
+        'El usuario se compromete a utilizar la Aplicación de conformidad con la ley, la moral y el orden público, así como con estos Términos. Queda prohibido: utilizar la Aplicación con fines fraudulentos o ilícitos; intentar acceder a cuentas, sistemas o datos de otros usuarios sin autorización; realizar ingeniería inversa, descompilar o intentar extraer el código fuente de la Aplicación más allá de lo permitido por la ley; introducir o difundir a través de la Aplicación contenido ilícito, ofensivo o que vulnere derechos de terceros; y subir fotos o vídeos en los que aparezcan otras personas sin su consentimiento.',
       ],
     },
     {
@@ -246,7 +253,7 @@ export const TERMINOS_CONDICIONES: LegalDocument = {
     {
       heading: '9. Propiedad intelectual',
       paragraphs: [
-        'El código, diseño y elementos propios de la Aplicación son propiedad de su titular. El usuario conserva la titularidad de los datos que introduce (rutinas, entrenamientos, notas), sin perjuicio de la licencia de uso necesaria para que el titular pueda prestar el servicio (almacenamiento y visualización de dichos datos).',
+        'El código, diseño y elementos propios de la Aplicación son propiedad de su titular. El usuario conserva la titularidad de los datos que introduce (rutinas, entrenamientos, notas, fotos, vídeos y medidas), sin perjuicio de la licencia de uso necesaria para que el titular pueda prestar el servicio (almacenamiento y visualización de dichos datos).',
       ],
     },
     {

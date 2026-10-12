@@ -1,20 +1,55 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Pause, Square, Plus, Trash2, Dumbbell, Clock, X, ChevronUp, ChevronDown, Check, AlertCircle, Sparkles, History } from 'lucide-react';
+import { Play, Pause, Square, Plus, Trash2, Dumbbell, Clock, X, ChevronUp, ChevronDown, Check, AlertCircle, Sparkles, History, Gauge, Link2, Link2Off, ClipboardList, Bell, BellOff } from 'lucide-react';
 import { Routine, Exercise, WorkoutExercise, WorkoutSet, WorkoutLog } from '../types';
 import ExerciseLibraryPanel from './ExerciseLibraryPanel';
 import ConfirmDialog from './ConfirmDialog';
 import DecimalInput from './DecimalInput';
 import { useLightbox } from '../context/LightboxContext';
 import { getStaticThumbUrl } from '../utils/media';
-import { getLastPerformanceSets, applyLastPerformance } from '../utils/lastPerformance';
+import { getLastPerformanceSets } from '../utils/lastPerformance';
+import { ProgressionRule, prefillWithProgression } from '../utils/progressionRules';
 import { detectSetAnomaly } from '../utils/anomaly';
+import { SET_KINDS, SetKind, kindOf, withKind, setLabel, supersetLetters, restAfterSet, toggleSupersetWithNext } from '../utils/setTypes';
+import AnchoredPopover from './AnchoredPopover';
+import SetKindMenu from './SetKindMenu';
+import {
+  isRestPushEnabled,
+  enableRestPush,
+  disableRestPush,
+  scheduleRestPush,
+  cancelRestPush,
+  clearRestNotifications,
+} from '../utils/restPush';
+import { testPush, MediaItem } from '../api/client';
+import PhotoCaptureButtons from './PhotoCaptureButtons';
+import WorkoutPhotos from './WorkoutPhotos';
 
 // Margen para avisar del fin de un descanso que terminó mientras la app estaba
 // en segundo plano: si al volver han pasado menos de esto, se da el aviso; si
 // ha pasado más, se descarta en silencio (evita pitidos/vibraciones por
 // sorpresa al desbloquear el móvil un rato después).
 const REST_ALERT_GRACE_MS = 90 * 1000;
+
+// Serie | Peso | Reps | RPE | Hecho | Quitar. RPE, Hecho y Quitar tienen ancho
+// fijo para que el check no se aplaste en móvil.
+const SET_ROW_COLUMNS = '2rem minmax(0,1fr) minmax(0,1fr) 2.25rem 2.25rem 1.75rem';
+
+// Los 10 valores del RPE, de 1 a 10. hint = repeticiones que quedaban en reserva
+// (10 - RPE; 0 = al fallo): una sola palabra o cifra para que quepa bajo cada
+// botón sin que se monten unas etiquetas sobre otras.
+const RPE_OPTIONS = Array.from({ length: 10 }, (_, i) => {
+  const value = i + 1;
+  const reserve = 10 - value;
+  return { value, hint: reserve === 0 ? 'fallo' : String(reserve) };
+});
+
+function rpeColor(rpe: number): string {
+  if (rpe <= 5) return '#34d399';
+  if (rpe <= 7) return '#fbbf24';
+  if (rpe <= 8) return '#fb923c';
+  return '#ef4444';
+}
 
 function hasValidPhoto(ex?: Exercise) {
   return (
@@ -33,23 +68,37 @@ interface ActiveWorkoutPanelProps {
   } | null;
   exercises: Exercise[];
   logs: WorkoutLog[];
+  routines: Routine[];
+  progressionRules: ProgressionRule[];
   onUpdateWorkout: (updater: (prev: any) => any) => void;
   onFinishWorkout: (durationSeconds: number) => void;
   onCancelWorkout: () => void;
+  onOpenPlateCalculator?: () => void;
+  // Fotos de este entrenamiento (se pueden añadir en cualquier momento)
+  photos?: MediaItem[];
+  onUploadPhoto?: (file: File, onProgress: (fraction: number) => void) => Promise<void>;
+  onDeletePhoto?: (id: string) => Promise<void>;
 }
 
 export default function ActiveWorkoutPanel({
   activeWorkout,
   exercises,
   logs,
+  routines,
+  progressionRules,
   onUpdateWorkout,
   onFinishWorkout,
   onCancelWorkout,
+  onOpenPlateCalculator,
+  photos = [],
+  onUploadPhoto,
+  onDeletePhoto,
 }: ActiveWorkoutPanelProps) {
   const { openLightbox } = useLightbox();
   const [isExpanded, setIsExpanded] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showAddExercise, setShowAddExercise] = useState(false);
+  const [showAddRoutine, setShowAddRoutine] = useState(false);
 
   // Preferencia de descanso automático (se recuerda entre entrenamientos)
   const [restTimerEnabled, setRestTimerEnabled] = useState(() => {
@@ -63,6 +112,7 @@ export default function ActiveWorkoutPanel({
         // Al desactivarlo, cancela cualquier descanso que esté contando ahora mismo
         setRestTimeLeft(null);
         restEndTimeRef.current = null;
+        cancelRestPush();
       }
       return next;
     });
@@ -134,6 +184,9 @@ export default function ActiveWorkoutPanel({
   const restEndTimeRef = useRef<number | null>(null);
   // Evita disparar el pitido/vibración de fin de descanso más de una vez.
   const restEndFiredRef = useRef(false);
+  // Con la app a la vista, el aviso push se cancela justo antes del final (ya
+  // suena el pitido); esto evita cancelarlo más de una vez por descanso.
+  const restPushClearedRef = useRef(false);
   // Wake Lock: mantiene la pantalla encendida durante el entrenamiento para
   // que el descanso siga corriendo en vez de que el móvil se bloquee solo.
   const wakeLockRef = useRef<any>(null);
@@ -228,6 +281,11 @@ export default function ActiveWorkoutPanel({
       const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
       setRestTimeLeft(remaining);
 
+      if (remaining <= 1 && !restPushClearedRef.current && document.visibilityState === 'visible') {
+        restPushClearedRef.current = true;
+        cancelRestPush();
+      }
+
       if (remaining === 0 && !restEndFiredRef.current) {
         // Con la pantalla apagada o la app en segundo plano, ni el pitido ni la
         // vibración se perciben (el navegador congela la pestaña y bloquea
@@ -310,7 +368,75 @@ export default function ActiveWorkoutPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!activeWorkout]);
 
+  // Menús de RPE y de tipo de serie: serie que lo abrió y botón junto al que se muestra
+  const [rpePicker, setRpePicker] = useState<{ setId: string; anchor: HTMLElement } | null>(null);
+  const [kindPicker, setKindPicker] = useState<{ setId: string; anchor: HTMLElement } | null>(null);
+
+  // Fotos desde los iconos de la cabecera (las miniaturas están al final del panel)
+  const [headerPhotoProgress, setHeaderPhotoProgress] = useState<number | null>(null);
+  const handleHeaderPhotos = async (files: File[]) => {
+    if (!onUploadPhoto) return;
+    try {
+      for (const file of files) {
+        setHeaderPhotoProgress(0);
+        await onUploadPhoto(file, setHeaderPhotoProgress);
+      }
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'No se pudo subir la foto.');
+    } finally {
+      setHeaderPhotoProgress(null);
+    }
+  };
+
+  // Aviso de fin de descanso con la app cerrada (notificación push)
+  const [restPushOn, setRestPushOn] = useState(isRestPushEnabled);
+  const [restPushBusy, setRestPushBusy] = useState(false);
+  const [restPushMessage, setRestPushMessage] = useState<string | null>(null);
+
+  // Al terminar o cancelar el entrenamiento no debe llegar un aviso pendiente,
+  // y al volver a la app sobra la notificación del descanso ya visto.
+  useEffect(() => {
+    if (!activeWorkout) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') clearRestNotifications();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      cancelRestPush();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!activeWorkout]);
+
   if (!activeWorkout) return null;
+
+  const toggleRestPush = async () => {
+    setRestPushMessage(null);
+    setRestPushBusy(true);
+    try {
+      if (restPushOn) {
+        await disableRestPush();
+        setRestPushOn(false);
+      } else {
+        await enableRestPush();
+        setRestPushOn(true);
+        const res = await testPush().catch(() => null);
+        setRestPushMessage(
+          res?.success
+            ? 'Avisos activados: te ha llegado una notificación de prueba.'
+            : 'Avisos activados, pero la notificación de prueba no salió. Revisa los permisos del navegador.'
+        );
+        // Si ya hay un descanso contando, se programa su aviso
+        if (restEndTimeRef.current) scheduleRestPush(restEndTimeRef.current, currentRestExerciseName);
+      }
+    } catch (err) {
+      setRestPushMessage(err instanceof Error ? err.message : 'No se pudieron activar los avisos.');
+    } finally {
+      setRestPushBusy(false);
+    }
+  };
+
+  const supersetLetterById = supersetLetters(activeWorkout.exercises);
 
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -350,24 +476,28 @@ export default function ActiveWorkoutPanel({
     onUpdateWorkout((prev) => {
       if (!prev) return prev;
       let targetRestTime = 90; // Fallback default
-      
-      const updatedExercises = prev.exercises.map((we: WorkoutExercise) => {
+
+      const updatedExercises = prev.exercises.map((we: WorkoutExercise, exIndex: number) => {
         if (we.id !== exerciseInstanceId) return we;
-        
+
         // Find default exercise rest timer if no custom one exists
         const matchedEx = exercises.find((e) => e.id === we.exerciseId);
-        targetRestTime = we.restTime || matchedEx?.defaultRestTime || 90;
+        const normalRest = we.restTime || matchedEx?.defaultRestTime || 90;
 
         return {
           ...we,
-          sets: we.sets.map((s: WorkoutSet) => {
+          sets: we.sets.map((s: WorkoutSet, setIndex: number) => {
             if (s.id !== setId) return s;
             const newCompleted = !s.completed;
-            
+            // Drop set / rest-pause a continuación o superserie: descanso corto o ninguno
+            targetRestTime = restAfterSet(prev.exercises, exIndex, setIndex, normalRest);
+
             // If checking a set to completed, initiate rest timer! (a menos que esté desactivado)
-            if (newCompleted && restTimerEnabled) {
+            if (newCompleted && restTimerEnabled && targetRestTime > 0) {
               restEndTimeRef.current = Date.now() + targetRestTime * 1000;
               restEndFiredRef.current = false;
+              restPushClearedRef.current = false;
+              scheduleRestPush(restEndTimeRef.current, exName);
               setRestInitialTime(targetRestTime);
               setRestTimeLeft(targetRestTime);
               setIsRestPaused(false);
@@ -398,6 +528,49 @@ export default function ActiveWorkoutPanel({
           };
         }),
       };
+    });
+  };
+
+  const handleUpdateRPE =(exerciseInstanceId: string, setId: string, rpe?: number) => {
+    setRpePicker(null);
+    onUpdateWorkout((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises.map((we: WorkoutExercise) => {
+          if (we.id !== exerciseInstanceId) return we;
+          return {
+            ...we,
+            sets: we.sets.map((s: WorkoutSet) => {
+              if (s.id !== setId) return s;
+              return { ...s, rpe };
+            }),
+          };
+        }),
+      };
+    });
+  };
+
+  const handleSetKind = (exerciseInstanceId: string, setId: string, kind: SetKind) => {
+    setKindPicker(null);
+    onUpdateWorkout((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises.map((we: WorkoutExercise) =>
+          we.id !== exerciseInstanceId
+            ? we
+            : { ...we, sets: we.sets.map((s: WorkoutSet) => (s.id === setId ? withKind(s, kind) : s)) }
+        ),
+      };
+    });
+  };
+
+  // Une el ejercicio con el siguiente en una superserie, o lo separa del grupo
+  const handleToggleSuperset = (exerciseIndex: number) => {
+    onUpdateWorkout((prev) => {
+      if (!prev) return prev;
+      return { ...prev, exercises: toggleSupersetWithNext(prev.exercises, exerciseIndex) };
     });
   };
 
@@ -457,7 +630,11 @@ export default function ActiveWorkoutPanel({
         id: `we-active-${Date.now()}`,
         exerciseId: ex.id,
         restTime: ex.defaultRestTime,
-        sets: applyLastPerformance(baseSets, getLastPerformanceSets(ex.id, logs)),
+        sets: prefillWithProgression(
+          baseSets,
+          getLastPerformanceSets(ex.id, logs),
+          progressionRules.find((r) => r.exerciseId === ex.id)
+        ),
       };
       return {
         ...prev,
@@ -465,6 +642,40 @@ export default function ActiveWorkoutPanel({
       };
     });
     setShowAddExercise(false);
+  };
+
+  // Combina otra rutina con la sesión en curso: sus ejercicios se añaden al
+  // final, prerrellenados igual que al empezar una rutina.
+  const handleAddRoutineToWorkout = (routine: Routine) => {
+    onUpdateWorkout((prev) => {
+      if (!prev) return prev;
+      const stamp = Date.now();
+      const added: WorkoutExercise[] = routine.exercises.map((re, i) => ({
+        id: `we-active-${stamp}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+        exerciseId: re.exerciseId,
+        restTime: re.restTime,
+        ...(re.supersetId ? { supersetId: `${re.supersetId}-${stamp}` } : {}),
+        sets: prefillWithProgression(
+          re.sets.map((s, j) => ({
+            id: `set-act-${stamp}-${i}-${j}`,
+            weight: s.weight,
+            reps: s.reps,
+            completed: false,
+            ...(s.isWarmup ? { isWarmup: true } : {}),
+            ...(s.setType ? { setType: s.setType } : {}),
+          })),
+          getLastPerformanceSets(re.exerciseId, logs),
+          progressionRules.find((r) => r.exerciseId === re.exerciseId)
+        ),
+      }));
+      const alreadyNamed = prev.routineName.split(' + ').includes(routine.name);
+      return {
+        ...prev,
+        routineName: alreadyNamed ? prev.routineName : `${prev.routineName} + ${routine.name}`,
+        exercises: [...prev.exercises, ...added],
+      };
+    });
+    setShowAddRoutine(false);
   };
 
   const handleRemoveExerciseFromWorkout = (exerciseInstanceId: string) => {
@@ -489,6 +700,8 @@ export default function ActiveWorkoutPanel({
   const handleAdjustRest = (seconds: number) => {
     if (restEndTimeRef.current !== null) {
       restEndTimeRef.current += seconds * 1000;
+      restPushClearedRef.current = false;
+      if (restEndTimeRef.current > Date.now()) scheduleRestPush(restEndTimeRef.current, currentRestExerciseName);
     }
     setRestTimeLeft((prev) => {
       if (prev === null) return null;
@@ -554,9 +767,12 @@ export default function ActiveWorkoutPanel({
                         if (next) {
                           // Pausar: se congela, deja de avanzar el timestamp de fin
                           restEndTimeRef.current = null;
+                          cancelRestPush();
                         } else {
                           // Reanudar: recalcula el fin a partir del tiempo restante actual
                           restEndTimeRef.current = Date.now() + (restTimeLeft ?? 0) * 1000;
+                          restPushClearedRef.current = false;
+                          scheduleRestPush(restEndTimeRef.current, currentRestExerciseName);
                         }
                         return next;
                       });
@@ -573,6 +789,7 @@ export default function ActiveWorkoutPanel({
                   setRestTimeLeft(null);
                   restEndTimeRef.current = null;
                   if (restTimerRef.current) clearInterval(restTimerRef.current);
+                  cancelRestPush();
                 }}
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                   restTimeLeft === 0 ? 'bg-white/25 hover:bg-white/40 text-white' : 'hover:bg-white/15 text-blue-200 hover:text-white'
@@ -719,10 +936,57 @@ export default function ActiveWorkoutPanel({
                     />
                     <span>s</span>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={toggleRestPush}
+                    disabled={restPushBusy}
+                    title={restPushOn ? 'Desactivar aviso con la app cerrada' : 'Avisarme del fin del descanso aunque la app esté cerrada'}
+                    className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border transition-all shrink-0 cursor-pointer disabled:opacity-50 ${
+                      restPushOn
+                        ? 'text-amber-300 bg-amber-950/40 border-amber-500/30'
+                        : 'text-slate-500 bg-slate-950 border-slate-800'
+                    }`}
+                  >
+                    {restPushOn ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
+                    Aviso {restPushOn ? 'ON' : 'OFF'}
+                  </button>
                 </div>
+                {restPushMessage && (
+                  <div className="text-[11px] text-amber-200/90 bg-amber-950/30 border border-amber-500/20 rounded-lg px-2.5 py-1.5">
+                    {restPushMessage}
+                  </div>
+                )}
 
                 {/* Fila 3: acciones principales, siempre visibles a lo ancho completo */}
                 <div className="flex items-center gap-2">
+                  {onUploadPhoto && (
+                    <div
+                      className="relative flex items-center bg-slate-800 border border-slate-700 rounded-xl shrink-0"
+                      title="Fotos del entrenamiento"
+                    >
+                      <PhotoCaptureButtons compact allowVideo onFiles={handleHeaderPhotos} disabled={headerPhotoProgress !== null} />
+                      {photos.length > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-blue-600 text-[9px] font-black text-white flex items-center justify-center">
+                          {photos.length}
+                        </span>
+                      )}
+                      {headerPhotoProgress !== null && (
+                        <span className="absolute inset-x-1 bottom-0.5 h-0.5 bg-slate-700 rounded-full overflow-hidden">
+                          <span className="block h-full bg-blue-500" style={{ width: `${Math.max(5, headerPhotoProgress * 100)}%` }} />
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {onOpenPlateCalculator && (
+                    <button
+                      onClick={onOpenPlateCalculator}
+                      title="Calculadora de discos"
+                      className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center shrink-0 cursor-pointer"
+                    >
+                      ⚙️
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setConfirmConfig({
@@ -766,13 +1030,23 @@ export default function ActiveWorkoutPanel({
                   {activeWorkout.exercises.map((we, index) => {
                     const ex = exercises.find((e) => e.id === we.exerciseId);
                     if (!ex) return null;
+                    const supersetLetter = supersetLetterById[we.id];
+                    const nextExercise = activeWorkout.exercises[index + 1];
+                    const linkedWithNext = !!we.supersetId && we.supersetId === nextExercise?.supersetId;
 
                     return (
                         <div
                           key={we.id}
                           id={`workout-exercise-card-${we.id}`}
-                          className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden"
+                          className={`bg-slate-900 rounded-2xl border shadow-xl overflow-hidden ${
+                            supersetLetter ? 'border-violet-500/50 border-l-4 border-l-violet-500' : 'border-slate-800'
+                          }`}
                         >
+                        {supersetLetter && (
+                          <div className="px-3 py-1 bg-violet-950/40 border-b border-violet-500/30 text-[10px] font-black uppercase tracking-wider text-violet-300">
+                            Superserie {supersetLetter} · sin descanso entre ejercicios del grupo
+                          </div>
+                        )}
                         {/* Header Section */}
                         <div className="p-3 bg-slate-950 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
@@ -811,6 +1085,21 @@ export default function ActiveWorkoutPanel({
                               <Clock className="h-3 w-3 text-blue-400" />
                               <span>Recomendado: <span className="text-blue-400">{ex.defaultRestTime}s</span></span>
                             </div>
+                            {nextExercise && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSuperset(index)}
+                                className={`flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] font-bold border transition-colors cursor-pointer ${
+                                  linkedWithNext
+                                    ? 'bg-violet-950/40 border-violet-500/40 text-violet-300 hover:bg-violet-900/40'
+                                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                                }`}
+                                title={linkedWithNext ? 'Separar del siguiente ejercicio' : 'Hacer superserie con el siguiente ejercicio'}
+                              >
+                                {linkedWithNext ? <Link2Off className="h-3 w-3" /> : <Link2 className="h-3 w-3" />}
+                                {linkedWithNext ? 'Separar' : 'Superserie'}
+                              </button>
+                            )}
                             <button
                               onClick={() => handleRemoveExerciseFromWorkout(we.id)}
                               className="text-slate-500 hover:text-rose-400 p-1.5 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
@@ -826,31 +1115,50 @@ export default function ActiveWorkoutPanel({
                           {/* Los pesos/repeticiones de la última vez ya vienen
                               prerrellenados en los propios campos al iniciar la
                               rutina, así que aquí no hace falta mostrarlos aparte. */}
-                          <div className="grid grid-cols-12 gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider text-center border-b border-slate-800 pb-2">
-                            <span className="col-span-2 text-left whitespace-nowrap">Serie</span>
-                            <span className="col-span-3 whitespace-nowrap">Peso</span>
-                            <span className="col-span-3 whitespace-nowrap">Reps</span>
-                            <span className="col-span-2 whitespace-nowrap">Hecho</span>
-                            <span className="col-span-2 whitespace-nowrap"></span>
+                          <div
+                            className="grid gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center border-b border-slate-800 pb-2"
+                            style={{ gridTemplateColumns: SET_ROW_COLUMNS }}
+                          >
+                            <span className="text-left whitespace-nowrap">Serie</span>
+                            <span className="whitespace-nowrap">Peso</span>
+                            <span className="whitespace-nowrap">Reps</span>
+                            <span className="whitespace-nowrap">RPE</span>
+                            <span className="flex justify-center"><Check className="h-4 w-4 stroke-[3px]" /></span>
+                            <span></span>
                           </div>
 
                           {we.sets.map((set, setIndex) => (
                             <div
                               key={set.id}
-                              className={`grid grid-cols-12 gap-2 items-center text-center py-1.5 rounded-xl transition-all ${
+                              className={`relative grid gap-1.5 items-center text-center py-1.5 rounded-xl transition-all ${
                                 set.completed ? 'bg-emerald-950/20 border-t border-b border-emerald-900/40' : 'hover:bg-slate-850/50'
                               }`}
+                              style={{ gridTemplateColumns: SET_ROW_COLUMNS }}
                             >
-                              {/* Set Index */}
-                              <span className="col-span-2 text-sm font-bold text-slate-400 text-left pl-1">
-                                #{setIndex + 1}
-                              </span>
+                              {/* Set Index / tipo de serie (tocar para cambiarlo) */}
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  setKindPicker(kindPicker?.setId === set.id ? null : { setId: set.id, anchor: e.currentTarget })
+                                }
+                                title="Tipo de serie"
+                                className="text-sm font-bold text-left pl-1 cursor-pointer whitespace-nowrap"
+                                style={{ color: SET_KINDS.find((k) => k.kind === kindOf(set))?.color }}
+                              >
+                                {setLabel(we.sets, setIndex)}
+                              </button>
+
+                              {kindPicker?.setId === set.id && (
+                                <AnchoredPopover anchor={kindPicker.anchor} width={256} onClose={() => setKindPicker(null)}>
+                                  <SetKindMenu current={kindOf(set)} onSelect={(k) => handleSetKind(we.id, set.id, k)} />
+                                </AnchoredPopover>
+                              )}
 
                               {/* Weight Input. text-base (16px) no solo se lee
                                   mejor: por debajo de 16px iOS hace zoom
                                   automático al enfocar el campo, lo que descoloca
                                   toda la pantalla en móvil. */}
-                              <div className="col-span-3">
+                              <div className="min-w-0">
                                 <DecimalInput
                                   value={set.weight}
                                   placeholder="0"
@@ -862,7 +1170,7 @@ export default function ActiveWorkoutPanel({
                               </div>
 
                               {/* Reps Input */}
-                              <div className="col-span-3">
+                              <div className="min-w-0">
                                 <input
                                   type="number"
                                   min={1}
@@ -876,12 +1184,64 @@ export default function ActiveWorkoutPanel({
                                 />
                               </div>
 
+                              {/* RPE (el selector se ancla a la fila, no a esta celda estrecha) */}
+                              <div className="flex justify-center">
+                                <button
+                                  type="button"
+                                  onClick={(e) =>
+                                    setRpePicker(rpePicker?.setId === set.id ? null : { setId: set.id, anchor: e.currentTarget })
+                                  }
+                                  className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-xs font-bold transition cursor-pointer ${
+                                    set.rpe ? 'text-slate-950' : 'text-slate-500 hover:text-slate-300'
+                                  }`}
+                                  style={set.rpe ? { backgroundColor: rpeColor(set.rpe) } : undefined}
+                                  title={set.rpe ? `RPE ${set.rpe}` : 'Añadir RPE'}
+                                >
+                                  {set.rpe ?? <Gauge className="h-4 w-4" />}
+                                </button>
+
+                                {rpePicker?.setId === set.id && (
+                                  <AnchoredPopover anchor={rpePicker.anchor} align="right" width={248} onClose={() => setRpePicker(null)}>
+                                    <div className="p-0.5">
+                                      <p className="px-0.5 pb-1.5 text-[11px] leading-tight text-slate-400">
+                                        RPE · reps que te quedaban en reserva
+                                      </p>
+                                      <div className="grid grid-cols-5 gap-1">
+                                        {RPE_OPTIONS.map((opt) => (
+                                          <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => handleUpdateRPE(we.id, set.id, opt.value)}
+                                            className={`flex flex-col items-center justify-center py-1.5 rounded-lg text-slate-950 cursor-pointer ${
+                                              set.rpe === opt.value ? 'ring-2 ring-white' : ''
+                                            }`}
+                                            style={{ backgroundColor: rpeColor(opt.value) }}
+                                          >
+                                            <span className="text-base font-bold leading-none">{opt.value}</span>
+                                            <span className="mt-1 text-[10px] font-semibold leading-none opacity-80">{opt.hint}</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                      {set.rpe && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateRPE(we.id, set.id, undefined)}
+                                          className="w-full mt-2 py-1.5 rounded-lg text-xs font-bold text-slate-300 bg-slate-900 hover:bg-slate-950 cursor-pointer"
+                                        >
+                                          Quitar RPE
+                                        </button>
+                                      )}
+                                    </div>
+                                  </AnchoredPopover>
+                                )}
+                              </div>
+
                               {/* Completed Checkbox */}
-                              <div className="col-span-2 flex justify-center">
+                              <div className="flex justify-center">
                                 <button
                                   type="button"
                                   onClick={() => handleToggleSetComplete(we.id, set.id, ex.name, we.restTime)}
-                                  className={`h-8 w-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                                  className={`h-8 w-8 shrink-0 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                                     set.completed
                                       ? 'bg-emerald-600 border border-emerald-500 text-white'
                                       : 'border border-slate-700 hover:border-slate-500 text-transparent bg-slate-950'
@@ -892,7 +1252,7 @@ export default function ActiveWorkoutPanel({
                               </div>
 
                               {/* Remove Set */}
-                              <div className="col-span-2 flex justify-center">
+                              <div className="flex justify-center">
                                 <button
                                   type="button"
                                   disabled={we.sets.length <= 1}
@@ -927,6 +1287,25 @@ export default function ActiveWorkoutPanel({
                   <Plus className="h-4.5 w-4.5 text-blue-400" />
                   Agregar Ejercicio al Entrenamiento
                 </button>
+                {onUploadPhoto && onDeletePhoto && (
+                  <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                    <WorkoutPhotos
+                      title={activeWorkout.routineName}
+                      photos={photos}
+                      onUpload={onUploadPhoto}
+                      onDelete={onDeletePhoto}
+                    />
+                  </div>
+                )}
+                {routines.length > 0 && (
+                  <button
+                    onClick={() => setShowAddRoutine(true)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-850 text-slate-300 font-bold text-sm rounded-2xl transition-colors cursor-pointer border border-dashed border-slate-800"
+                  >
+                    <ClipboardList className="h-4.5 w-4.5 text-blue-400" />
+                    Añadir otra rutina a esta sesión
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>
@@ -960,6 +1339,50 @@ export default function ActiveWorkoutPanel({
                   selectable={true}
                   onSelectExercise={handleAddExerciseToWorkout}
                 />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: añadir otra rutina a la sesión en curso */}
+      <AnimatePresence>
+        {showAddRoutine && (
+          <div
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+            onClick={(e) => e.target === e.currentTarget && setShowAddRoutine(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-slate-900 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-800 max-h-[85dvh] flex flex-col"
+            >
+              <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-100">Añadir rutina a esta sesión</h3>
+                <button
+                  onClick={() => setShowAddRoutine(false)}
+                  className="text-slate-400 hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="overflow-y-auto p-3 space-y-2 bg-slate-950">
+                <p className="text-xs text-slate-400 px-1 pb-1">
+                  Sus ejercicios se añaden al final, con los pesos de la última vez (o de tu regla de progresión).
+                </p>
+                {routines.map((routine) => (
+                  <button
+                    key={routine.id}
+                    onClick={() => handleAddRoutineToWorkout(routine)}
+                    className="w-full text-left p-3 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/50 transition-colors cursor-pointer"
+                  >
+                    <div className="font-bold text-sm text-slate-100">{routine.name}</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">
+                      {[routine.folder, routine.dayOfWeek, `${routine.exercises.length} ejercicios`].filter(Boolean).join(' · ')}
+                    </div>
+                  </button>
+                ))}
               </div>
             </motion.div>
           </div>

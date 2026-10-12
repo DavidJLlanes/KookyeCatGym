@@ -6,6 +6,8 @@ import { MUSCLE_GROUPS, EQUIPMENT_TYPES, getMuscleColor } from '../data/exercise
 import ExerciseAIVisualizer from './ExerciseAIVisualizer';
 import ExerciseCardThumbnail from './ExerciseCardThumbnail';
 import { useLightbox } from '../context/LightboxContext';
+import ExerciseMediaSection from './ExerciseMediaSection';
+import type { MediaItem } from '../api/client';
 import { detectMuscleZone, MuscleZone, MUSCLE_GROUP_ZONES, MUSCLE_ZONE_IMAGE, MUSCLE_ZONE_LABEL } from '../utils/muscleZone';
 
 interface ExerciseLibraryPanelProps {
@@ -13,6 +15,11 @@ interface ExerciseLibraryPanelProps {
   onAddCustomExercise: (exercise: Exercise) => void;
   selectable?: boolean;
   onSelectExercise?: (exercise: Exercise) => void;
+  // Fotos y vídeos propios (solo en la pestaña Ejercicios)
+  media?: MediaItem[];
+  onUploadMedia?: (exerciseId: string, file: File, onProgress: (fraction: number) => void) => Promise<void>;
+  onDeleteMedia?: (id: string) => Promise<void>;
+  onSetPrimaryMedia?: (id: string) => Promise<void>;
 }
 
 export default function ExerciseLibraryPanel({
@@ -20,6 +27,10 @@ export default function ExerciseLibraryPanel({
   onAddCustomExercise,
   selectable = false,
   onSelectExercise,
+  media,
+  onUploadMedia,
+  onDeleteMedia,
+  onSetPrimaryMedia,
 }: ExerciseLibraryPanelProps) {
   const { openLightbox } = useLightbox();
   const [search, setSearch] = useState('');
@@ -43,6 +54,13 @@ export default function ExerciseLibraryPanel({
     return map;
   }, [exercises]);
   const [viewingExercise, setViewingExercise] = useState<Exercise | null>(null);
+  // Si cambia la foto principal mientras la ficha está abierta, se refresca
+  useEffect(() => {
+    if (!viewingExercise) return;
+    const fresh = exercises.find((e) => e.id === viewingExercise.id);
+    if (fresh && fresh !== viewingExercise) setViewingExercise(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercises]);
   const [viewingMode, setViewingMode] = useState<'photo' | 'ai'>('ai');
   const [libraryViewMode, setLibraryViewMode] = useState<'photo' | 'anatomy'>('anatomy');
   
@@ -484,6 +502,16 @@ export default function ExerciseLibraryPanel({
                     ))}
                   </ol>
                 </div>
+
+                {onUploadMedia && onDeleteMedia && onSetPrimaryMedia && (
+                  <ExerciseMediaSection
+                    exerciseName={viewingExercise.name}
+                    items={(media ?? []).filter((m) => m.exerciseId === viewingExercise.id)}
+                    onUpload={(file, onProgress) => onUploadMedia(viewingExercise.id, file, onProgress)}
+                    onDelete={onDeleteMedia}
+                    onSetPrimary={onSetPrimaryMedia}
+                  />
+                )}
               </div>
 
               <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-end">

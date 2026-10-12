@@ -4,6 +4,7 @@ import {
   Dumbbell,
   ClipboardList,
   TrendingUp,
+  Images,
   Search,
   Plus,
   Play,
@@ -31,7 +32,14 @@ import { DEFAULT_ROUTINES, DEFAULT_LOGS } from './data/seed';
 import * as api from './api/client';
 import { computeSessionRecords, formatRecordsMessage } from './utils/records';
 import { formatEsNumber } from './utils/number';
-import { getLastPerformanceSets, applyLastPerformance } from './utils/lastPerformance';
+import { getLastPerformanceSets } from './utils/lastPerformance';
+import { ProgressionRule, prefillWithProgression } from './utils/progressionRules';
+import ImportPanel, { ImportOutcome } from './components/ImportPanel';
+import PasskeySection from './components/PasskeySection';
+import { prepareMediaUpload } from './utils/mediaUpload';
+import WorkoutPhotos from './components/WorkoutPhotos';
+import { activeWorkoutPhotoKey, localDay } from './utils/photoTools';
+import { detectSessionPRs, formatPRRecord, getPREmoji } from './utils/prDetection';
 import {
   detectMuscleZone,
   MuscleZone,
@@ -43,6 +51,7 @@ import {
 import ExerciseLibraryPanel from './components/ExerciseLibraryPanel';
 import ActiveWorkoutPanel from './components/ActiveWorkoutPanel';
 import WorkoutShareModal from './components/WorkoutShareModal';
+import PlateCalculatorModal from './components/PlateCalculatorModal';
 import ConfirmDialog from './components/ConfirmDialog';
 import { AuthUser } from './auth';
 import LegalFooterLinks from './components/legal/LegalFooterLinks';
@@ -53,6 +62,7 @@ import LegalFooterLinks from './components/legal/LegalFooterLinks';
 const RoutinesPanel = lazy(() => import('./components/RoutinesPanel'));
 const ProgressPanel = lazy(() => import('./components/ProgressPanel'));
 const UserManagementPanel = lazy(() => import('./components/UserManagementPanel'));
+const PhotosPanel = lazy(() => import('./components/PhotosPanel'));
 
 function TabLoadingFallback() {
   return <div className="p-10 text-center text-slate-500 text-sm">Cargando…</div>;
@@ -70,12 +80,26 @@ interface AppContentProps {
 const ACTIVE_WORKOUT_DELETE_PENDING_KEY = 'hevy_active_workout_delete_pending';
 
 export default function AppContent({ currentUser, onLogout }: AppContentProps) {
-  const [currentTab, setCurrentTab] = useState<'train' | 'routines' | 'exercises' | 'progress' | 'users'>('train');
+  const [currentTab, setCurrentTab] = useState<'train' | 'routines' | 'exercises' | 'progress' | 'photos' | 'users'>('train');
 
   // --- PERSISTENT STATE LAYERS ---
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [logs, setLogs] = useState<WorkoutLog[]>([]);
+  const [progressionRules, setProgressionRules] = useState<ProgressionRule[]>([]);
+  const existingLogIds = useMemo(() => new Set(logs.map((l) => l.id)), [logs]);
+  const [exerciseMedia, setExerciseMedia] = useState<api.MediaItem[]>([]);
+  // Para mostrar: los ejercicios con tu foto principal en lugar de la del
+  // catálogo. `exercises` no se toca, que es lo que se guarda en el servidor.
+  // Fotos por tipo: de ejercicios, de entrenamientos y de progreso físico
+  const exerciseOnlyMedia = useMemo(() => exerciseMedia.filter((m) => (m.kind ?? 'exercise') === 'exercise'), [exerciseMedia]);
+  const workoutPhotos = useMemo(() => exerciseMedia.filter((m) => m.kind === 'workout'), [exerciseMedia]);
+  const progressPhotos = useMemo(() => exerciseMedia.filter((m) => m.kind === 'progress'), [exerciseMedia]);
+  const displayExercises = useMemo(() => {
+    const primaryByExercise = new Map(exerciseOnlyMedia.filter((m) => m.isPrimary).map((m) => [m.exerciseId, m.url]));
+    if (primaryByExercise.size === 0) return exercises;
+    return exercises.map((e) => (primaryByExercise.has(e.id) ? { ...e, imageUrl: primaryByExercise.get(e.id)! } : e));
+  }, [exercises, exerciseOnlyMedia]);
   const [activeWorkout, setActiveWorkout] = useState<{
     routineId?: string;
     routineName: string;
@@ -151,6 +175,9 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [backupJson, setBackupJson] = useState('');
 
+  // Plate Math Modal
+  const [showPlateCalculator, setShowPlateCalculator] = useState(false);
+
   // Custom confirmation state
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -178,13 +205,19 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
 
       try {
         // Try loading from API first
-        const [remoteEx, remoteRout, remoteLogs, remoteActiveRaw, exercisesModule] = await Promise.all([
+        const [remoteEx, remoteRout, remoteLogs, remoteActiveRaw, exercisesModule, remoteRules] = await Promise.all([
           api.getExercises().catch(() => null),
           api.getRoutines().catch(() => null),
           api.getLogs().catch(() => null),
           api.getActiveWorkout().catch(() => null),
           exercisesModulePromise,
+          api.getProgressionRules().catch(() => []),
         ]);
+        setProgressionRules(Array.isArray(remoteRules) ? remoteRules : []);
+        api
+          .getMyMedia()
+          .then((items) => setExerciseMedia(Array.isArray(items) ? items : []))
+          .catch(() => {});
         let remoteActive = remoteActiveRaw;
 
         // Si en una sesión anterior no se pudo confirmar en el servidor el
@@ -481,7 +514,11 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
         exerciseId: ex.id,
         restTime: ex.defaultRestTime,
         // Igual que en las rutinas: si ya se entrenó antes, viene prerrellenado
-        sets: applyLastPerformance(baseSets, getLastPerformanceSets(ex.id, logs)),
+        sets: prefillWithProgression(
+          baseSets,
+          getLastPerformanceSets(ex.id, logs),
+          progressionRules.find((r) => r.exerciseId === ex.id)
+        ),
       };
     });
 
@@ -513,6 +550,9 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
     // prerrellenan con lo que se hizo la ÚLTIMA vez con ese ejercicio, así la
     // mayoría de los días no hay que reescribirlos: se arranca con los valores
     // anteriores ya puestos en los campos y solo se ajusta lo que cambie.
+    // Si el ejercicio tiene una regla de progresión activa, en vez de repetir
+    // la última vez se parte de lo que toca según la regla.
+    const rulesByExercise = new Map(progressionRules.map((r) => [r.exerciseId, r]));
     const activeExercises: WorkoutExercise[] = routine.exercises.map((re) => {
       const lastSets = getLastPerformanceSets(re.exerciseId, logs);
       const baseSets = re.sets.map((s, idx) => ({
@@ -520,12 +560,16 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
         weight: s.weight,
         reps: s.reps,
         completed: false, // Reset completion checklist
+        // Tipos de serie definidos en la rutina (calentamiento, drop set…)
+        ...(s.isWarmup ? { isWarmup: true } : {}),
+        ...(s.setType ? { setType: s.setType } : {}),
       }));
       return {
         id: `we-active-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         exerciseId: re.exerciseId,
         restTime: re.restTime,
-        sets: applyLastPerformance(baseSets, lastSets),
+        ...(re.supersetId ? { supersetId: re.supersetId } : {}),
+        sets: prefillWithProgression(baseSets, lastSets, rulesByExercise.get(re.exerciseId)),
       };
     });
 
@@ -548,6 +592,11 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
   // Finish active workout helper to execute saving after optional confirmation
   const executeFinishWorkout = (durationSeconds: number, loggedExercises: WorkoutExercise[]) => {
     if (!activeWorkout) return;
+
+    // PRIMERO: limpiar el active_workout (antes de guardar el log)
+    saveActiveWorkoutState(null); // Reset active
+
+    // LUEGO: guardar el log
     const newLog: WorkoutLog = {
       id: `log-${Date.now()}`,
       routineId: activeWorkout.routineId,
@@ -559,11 +608,35 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
 
     const newLogsList = [newLog, ...logs];
     saveLogs(newLogsList);
-    saveActiveWorkoutState(null); // Reset active
+
+    // Las fotos hechas durante el entrenamiento pasan a este entrenamiento del historial
+    const photoKey = activeWorkoutPhotoKey(activeWorkout.startTime);
+    if (exerciseMedia.some((m) => m.kind === 'workout' && m.logId === photoKey)) {
+      setExerciseMedia((prev) => prev.map((m) => (m.kind === 'workout' && m.logId === photoKey ? { ...m, logId: newLog.id } : m)));
+      api.relinkWorkoutMedia(photoKey, newLog.id).catch((err) => console.error('No se pudieron mover las fotos del entrenamiento', err));
+    }
 
     // Calcula si se han batido récords de peso/repeticiones frente al histórico previo
     const summary = computeSessionRecords(loggedExercises, logs, exercises);
     setRecordsMessage(formatRecordsMessage(summary));
+
+    // Detect PRs using new enhanced PR Detection system
+    const exerciseNameMap = new Map(exercises.map((e) => [e.id, e.name]));
+    const prSession = detectSessionPRs(
+      {
+        routineName: activeWorkout.routineName,
+        exercises: loggedExercises,
+      },
+      exerciseNameMap,
+      logs
+    );
+
+    // Si se detectaron PRs, agregar un mensaje adicional
+    if (prSession.isNewSessionPR && prSession.records.length > 0) {
+      const prMessages = prSession.records.map((pr) => `${getPREmoji(pr.percentage)} ${formatPRRecord(pr)}`).join('\n');
+      const fullMessage = recordsMessage ? `${recordsMessage}\n\n${prMessages}` : prMessages;
+      setRecordsMessage(fullMessage);
+    }
 
     // Trigger celebration modal and navigate to progress tab
     setJustFinishedWorkout(newLog);
@@ -723,6 +796,106 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
     });
   };
 
+  // --- FOTOS Y VÍDEOS PROPIOS ---
+  const handleUploadMedia = async (exerciseId: string, file: File, onProgress: (fraction: number) => void) => {
+    const { blob, fileName } = await prepareMediaUpload(file);
+    const item = await api.uploadMedia(blob, fileName, { kind: 'exercise', exerciseId }, onProgress);
+    setExerciseMedia((prev) => [...prev.filter((m) => m.id !== item.id), item]);
+  };
+
+  // Foto de un entrenamiento (del historial o el que está en curso). Su fecha es
+  // la del entrenamiento, para que salga en ese día del calendario de Fotos.
+  const handleUploadWorkoutPhoto = async (logId: string, file: File, onProgress: (fraction: number) => void) => {
+    const { blob, fileName } = await prepareMediaUpload(file);
+    const log = logs.find((l) => l.id === logId);
+    const takenAt = log ? localDay(new Date(log.date)) : localDay();
+    const item = await api.uploadMedia(blob, fileName, { kind: 'workout', logId, takenAt }, onProgress);
+    setExerciseMedia((prev) => [...prev.filter((m) => m.id !== item.id), item]);
+  };
+
+  const handleUploadProgressPhoto = async (
+    target: Extract<api.MediaTarget, { kind: 'progress' }>,
+    file: File,
+    onProgress: (fraction: number) => void
+  ) => {
+    const { blob, fileName } = await prepareMediaUpload(file);
+    const item = await api.uploadMedia(blob, fileName, target, onProgress);
+    setExerciseMedia((prev) => [...prev.filter((m) => m.id !== item.id), item]);
+  };
+
+  const handleUpdatePhoto = async (id: string, changes: Parameters<typeof api.updateMedia>[1]) => {
+    const item = await api.updateMedia(id, changes);
+    setExerciseMedia((prev) => prev.map((m) => (m.id === item.id ? item : m)));
+  };
+
+  // Tras marcar o borrar, se recarga la lista: el servidor decide qué foto queda como principal
+  const refreshMedia = async () => setExerciseMedia(await api.getMyMedia());
+
+  const handleSetPrimaryMedia = async (id: string) => {
+    await api.setPrimaryMedia(id);
+    await refreshMedia();
+  };
+
+  const handleDeleteMedia = async (id: string) => {
+    await api.deleteMedia(id);
+    await refreshMedia();
+  };
+
+  // Reglas de progresión: se guardan primero en el servidor y solo si va bien
+  // se actualiza la pantalla (si falla, el panel muestra el error).
+  const handleSaveProgressionRule = async (rule: ProgressionRule) => {
+    await api.saveProgressionRule(rule);
+    setProgressionRules((prev) => [...prev.filter((r) => r.exerciseId !== rule.exerciseId), rule]);
+  };
+
+  const handleDeleteProgressionRule = async (exerciseId: string) => {
+    await api.deleteProgressionRule(exerciseId);
+    setProgressionRules((prev) => prev.filter((r) => r.exerciseId !== exerciseId));
+  };
+
+  // Importación desde otra app (Hevy, Strong, FitNotes). Los registros se suben
+  // de uno en uno (no en paralelo) para no saturar el servidor con cientos de
+  // escrituras a la vez en SQLite; solo se añaden al historial los que el
+  // servidor confirma.
+  const handleImportWorkouts = async (
+    newLogs: WorkoutLog[],
+    newExercises: Exercise[],
+    onProgress: (done: number, total: number) => void
+  ): Promise<ImportOutcome> => {
+    if (newExercises.length > 0) {
+      const updatedExercises = [...newExercises, ...exercises];
+      const customOnly = updatedExercises.filter((e) => e.isCustom);
+      await api.saveExercises(customOnly);
+      setExercises(updatedExercises);
+      localStorage.setItem('hevy_exercises', JSON.stringify(customOnly));
+    }
+
+    const saved: WorkoutLog[] = [];
+    let failed = 0;
+    for (let i = 0; i < newLogs.length; i++) {
+      try {
+        await api.saveLog(newLogs[i]);
+        saved.push(newLogs[i]);
+      } catch {
+        failed++;
+      }
+      onProgress(i + 1, newLogs.length);
+    }
+
+    if (saved.length > 0) {
+      setLogs((prev) => {
+        const prevIds = new Set(prev.map((l) => l.id));
+        const merged = [...saved.filter((l) => !prevIds.has(l.id)), ...prev].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+        localStorage.setItem('hevy_logs', JSON.stringify(merged));
+        return merged;
+      });
+    }
+
+    return { saved: saved.length, failed };
+  };
+
   // --- BACKUP & RESTORE ACTIONS ---
   const handleExportData = () => {
     const backupData = {
@@ -790,6 +963,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
               { id: 'routines', label: 'Rutinas', icon: ClipboardList },
               { id: 'exercises', label: 'Ejercicios', icon: Dumbbell },
               { id: 'progress', label: 'Progreso', icon: TrendingUp },
+              { id: 'photos', label: 'Fotos', icon: Images },
               ...(currentUser.role === 'admin' ? [{ id: 'users', label: 'Usuarios', icon: Users }] : []),
             ].map((tab) => {
               const Icon = tab.icon;
@@ -977,6 +1151,16 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                           );
                         })}
                       </div>
+
+                      {/* Fotos del entrenamiento: se pueden añadir en cualquier momento */}
+                      <div className="pt-3 border-t border-slate-800/60">
+                        <WorkoutPhotos
+                          title={log.routineName}
+                          photos={workoutPhotos.filter((p) => p.logId === log.id)}
+                          onUpload={(file, onProgress) => handleUploadWorkoutPhoto(log.id, file, onProgress)}
+                          onDelete={handleDeleteMedia}
+                        />
+                      </div>
                     </div>
                   ))}
 
@@ -1002,7 +1186,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
               <Suspense fallback={<TabLoadingFallback />}>
                 <RoutinesPanel
                   routines={routines}
-                  exercises={exercises}
+                  exercises={displayExercises}
                   onStartRoutine={handleStartRoutine}
                   onSaveRoutine={handleSaveRoutine}
                   onDeleteRoutine={handleDeleteRoutine}
@@ -1021,8 +1205,12 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
               exit={{ opacity: 0, y: -10 }}
             >
               <ExerciseLibraryPanel
-                exercises={exercises}
+                exercises={displayExercises}
                 onAddCustomExercise={handleAddCustomExercise}
+                media={exerciseOnlyMedia}
+                onUploadMedia={handleUploadMedia}
+                onDeleteMedia={handleDeleteMedia}
+                onSetPrimaryMedia={handleSetPrimaryMedia}
               />
             </motion.div>
           )}
@@ -1038,6 +1226,35 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                 <ProgressPanel
                   logs={logs}
                   exercises={exercises}
+                  progressionRules={progressionRules}
+                  onSaveProgressionRule={handleSaveProgressionRule}
+                  onDeleteProgressionRule={handleDeleteProgressionRule}
+                  progressPhotos={progressPhotos}
+                  onUploadProgressPhoto={handleUploadProgressPhoto}
+                  onUpdatePhoto={handleUpdatePhoto}
+                  onDeletePhoto={handleDeleteMedia}
+                />
+              </Suspense>
+            </motion.div>
+          )}
+
+          {currentTab === 'photos' && (
+            <motion.div
+              key="photos-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Suspense fallback={<TabLoadingFallback />}>
+                <PhotosPanel
+                  photos={exerciseMedia}
+                  logs={logs}
+                  activeWorkoutKey={activeWorkout ? activeWorkoutPhotoKey(activeWorkout.startTime) : null}
+                  activeWorkoutName={activeWorkout?.routineName ?? null}
+                  onUploadWorkoutPhoto={handleUploadWorkoutPhoto}
+                  onUploadProgressPhoto={handleUploadProgressPhoto}
+                  onUpdatePhoto={handleUpdatePhoto}
+                  onDeletePhoto={handleDeleteMedia}
                 />
               </Suspense>
             </motion.div>
@@ -1051,7 +1268,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
               exit={{ opacity: 0, y: -10 }}
             >
               <Suspense fallback={<TabLoadingFallback />}>
-                <UserManagementPanel currentUser={currentUser} />
+                <UserManagementPanel currentUser={currentUser} exercises={exercises} />
               </Suspense>
             </motion.div>
           )}
@@ -1077,11 +1294,28 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
       {/* 3. ACTIVE WORKOUT PANEL FLOATING / EXPANDED HUD */}
       <ActiveWorkoutPanel
         activeWorkout={activeWorkout}
-        exercises={exercises}
+        exercises={displayExercises}
         logs={logs}
+        routines={routines}
+        progressionRules={progressionRules}
         onUpdateWorkout={handleUpdateActiveWorkout}
         onFinishWorkout={handleFinishWorkout}
         onCancelWorkout={handleCancelWorkout}
+        onOpenPlateCalculator={() => setShowPlateCalculator(true)}
+        photos={activeWorkout ? workoutPhotos.filter((p) => p.logId === activeWorkoutPhotoKey(activeWorkout.startTime)) : []}
+        onUploadPhoto={
+          activeWorkout ? (file, onProgress) => handleUploadWorkoutPhoto(activeWorkoutPhotoKey(activeWorkout.startTime), file, onProgress) : undefined
+        }
+        onDeletePhoto={handleDeleteMedia}
+      />
+
+      {/* Plate Calculator Modal */}
+      <PlateCalculatorModal
+        isOpen={showPlateCalculator}
+        onClose={() => setShowPlateCalculator(false)}
+        onSelectWeight={(weight) => {
+          // El modal se cierra automáticamente; el usuario puede usar el peso calculado como referencia
+        }}
       />
 
       {/* 4. TAB NAVIGATION FOR MOBILE DEVICES (con espacio para el home indicator de iOS) */}
@@ -1093,6 +1327,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
           { id: 'routines', label: 'Rutinas', icon: ClipboardList },
           { id: 'exercises', label: 'Ejercicios', icon: Dumbbell },
           { id: 'progress', label: 'Progreso', icon: TrendingUp },
+          { id: 'photos', label: 'Fotos', icon: Images },
           ...(currentUser.role === 'admin' ? [{ id: 'users', label: 'Usuarios', icon: Users }] : []),
         ].map((tab) => {
           const Icon = tab.icon;
@@ -1126,7 +1361,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-900 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-800 p-6 space-y-6"
+              className="bg-slate-900 rounded-2xl max-w-lg w-full max-h-[90dvh] overflow-y-auto shadow-2xl border border-slate-800 p-6 space-y-6"
             >
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
@@ -1179,6 +1414,23 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                   </button>
                 </form>
               </div>
+
+              <div className="border-t border-slate-800 pt-5 space-y-3">
+                <div className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Upload className="h-4 w-4 text-amber-400" />
+                  Importar desde otra app
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Trae tu historial de Hevy, Strong o FitNotes. Exporta tus datos en CSV desde esa app y elige el archivo aquí.
+                </p>
+                <ImportPanel
+                  exercises={exercises}
+                  existingLogIds={existingLogIds}
+                  onImport={handleImportWorkouts}
+                />
+              </div>
+
+              <PasskeySection />
             </motion.div>
           </div>
         )}

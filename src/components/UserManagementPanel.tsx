@@ -1,16 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Plus, Trash2, ShieldCheck, Shield, X, Mail, User as UserIcon, Lock } from 'lucide-react';
+import { Users, Plus, Trash2, ShieldCheck, Shield, X, Mail, User as UserIcon, Lock, BarChart3, ScrollText, Settings } from 'lucide-react';
 import * as api from '../api/client';
 import { AdminUserRow } from '../api/client';
 import { AuthUser } from '../auth';
+import { Exercise } from '../types';
 import ConfirmDialog from './ConfirmDialog';
+import { AdminStatsSection, AdminAuditSection, AdminSettingsSection } from './AdminSections';
 
 interface UserManagementPanelProps {
   currentUser: AuthUser;
+  exercises?: Exercise[];
 }
 
-export default function UserManagementPanel({ currentUser }: UserManagementPanelProps) {
+type AdminTab = 'users' | 'stats' | 'audit' | 'settings';
+
+const ADMIN_TABS: { id: AdminTab; label: string; icon: typeof Users }[] = [
+  { id: 'users', label: 'Usuarios', icon: Users },
+  { id: 'stats', label: 'Estadísticas', icon: BarChart3 },
+  { id: 'audit', label: 'Auditoría', icon: ScrollText },
+  { id: 'settings', label: 'Ajustes', icon: Settings },
+];
+
+export default function UserManagementPanel({ currentUser, exercises = [] }: UserManagementPanelProps) {
+  const [tab, setTab] = useState<AdminTab>('users');
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -118,20 +131,44 @@ export default function UserManagementPanel({ currentUser }: UserManagementPanel
           </h2>
           <p className="text-sm text-slate-400">Administra quién tiene acceso a KookyeCatGym y con qué rol.</p>
         </div>
-        <button
-          id="btn-create-user"
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-blue-500/10 cursor-pointer"
-        >
-          <Plus className="h-4.5 w-4.5" />
-          Crear Usuario
-        </button>
+        {tab === 'users' && (
+          <button
+            id="btn-create-user"
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-blue-500/10 cursor-pointer"
+          >
+            <Plus className="h-4.5 w-4.5" />
+            Crear Usuario
+          </button>
+        )}
       </div>
 
-      {error && (
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {ADMIN_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap border transition-colors cursor-pointer ${
+              tab === t.id
+                ? 'bg-blue-600 text-white border-blue-500'
+                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+            }`}
+          >
+            <t.icon className="h-3.5 w-3.5" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'stats' && <AdminStatsSection />}
+      {tab === 'audit' && <AdminAuditSection />}
+      {tab === 'settings' && <AdminSettingsSection />}
+
+      {tab === 'users' && error && (
         <div className="bg-rose-950/30 border border-rose-500/30 rounded-xl p-3 text-sm text-rose-300">{error}</div>
       )}
 
+      {tab === 'users' && (
       <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-lg overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-slate-500 text-sm">Cargando usuarios...</div>
@@ -197,6 +234,7 @@ export default function UserManagementPanel({ currentUser }: UserManagementPanel
           </div>
         )}
       </div>
+      )}
 
       {/* MODAL: Crear usuario */}
       <AnimatePresence>

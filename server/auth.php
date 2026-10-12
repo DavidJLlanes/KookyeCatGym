@@ -1,7 +1,8 @@
 <?php
 require_once 'config.php';
+require_once 'admin_lib.php';
 
-global $pdo;
+global $pdo, $dataDir;
 
 $route = $_GET['_route'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -27,7 +28,7 @@ if ($route === 'auth/register' && $method === 'POST') {
     // Registro deshabilitado temporalmente (ver config.php). El bloqueo va aquí,
     // en el servidor, para que no baste con reactivar la interfaz ni pegar
     // directamente a la API.
-    if (!REGISTRATION_ENABLED) {
+    if (!isRegistrationEnabled($dataDir)) {
         sendJson(['error' => 'El registro de nuevos usuarios está deshabilitado temporalmente.'], 403);
     }
 
@@ -74,6 +75,7 @@ if ($route === 'auth/register' && $method === 'POST') {
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = :id");
     $stmt->execute([':id' => $id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    auditLog($pdo, 'register', $id, $username, $email);
 
     sendJson(['token' => $token, 'user' => publicUser($user)]);
 }
@@ -101,13 +103,20 @@ elseif ($route === 'auth/login' && $method === 'POST') {
         // Solo los intentos FALLIDOS cuentan para el límite; así un usuario
         // legítimo que acierta no se penaliza.
         recordAuthAttempt('login', $identifierKey);
+        auditLog($pdo, 'login_failed', $user ? $user['id'] : null, $identifier, $user ? 'contraseña incorrecta' : 'usuario inexistente');
         sendJson(['error' => 'Usuario o contraseña incorrectos'], 401);
     }
 
     // Login correcto: se limpian los fallos de esa cuenta.
     clearLoginAttempts($identifierKey);
     $token = issueSession($user['id']);
+    auditLog($pdo, 'login', $user['id'], $user['username']);
     sendJson(['token' => $token, 'user' => publicUser($user)]);
+}
+
+elseif ($route === 'auth/registration' && $method === 'GET') {
+    // Público: la pantalla de acceso lo usa para mostrar u ocultar el registro
+    sendJson(['enabled' => isRegistrationEnabled($dataDir)]);
 }
 
 elseif ($route === 'auth/me' && $method === 'GET') {

@@ -1,8 +1,8 @@
 // Service Worker para Hevy Workout Tracker
 // Permite funcionamiento offline y mejora rendimiento
 
-const CACHE_NAME = 'kookyecatgym-v1';
-const API_CACHE = 'kookyecatgym-api-v1';
+const CACHE_NAME = 'kookyecatgym-v3';
+const API_CACHE = 'kookyecatgym-api-v2';
 const CACHE_URLS = [
   '/',
   '/index.html',
@@ -47,6 +47,12 @@ self.addEventListener('fetch', (event) => {
 
   // No cachear extensiones específicas
   if (request.url.includes('.php')) {
+    return;
+  }
+
+  // Fotos y vídeos propios: los sirve el servidor con caché larga; los vídeos
+  // llegan por rangos (206) que la Cache API no admite.
+  if (url.pathname.startsWith('/api/media')) {
     return;
   }
 
@@ -136,6 +142,40 @@ self.addEventListener('fetch', (event) => {
       .catch(() => {
         return caches.match(request) || new Response('Offline', { status: 503 });
       })
+  );
+});
+
+// Aviso de fin de descanso (y notificación de prueba) enviados por el servidor.
+// Se muestra siempre: iOS retira el permiso si un push no muestra notificación.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'KookyeCatGym', {
+      body: data.body || '',
+      tag: data.tag || 'kookyecatgym',
+      renotify: true,
+      icon: '/icon-192.png',
+      badge: '/icon-monochrome.png',
+      vibrate: [200, 100, 200, 100, 200],
+    })
+  );
+});
+
+// Tocar la notificación abre (o trae al frente) la app
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      for (const client of windows) {
+        if ('focus' in client) return client.focus();
+      }
+      return self.clients.openWindow('/');
+    })
   );
 });
 

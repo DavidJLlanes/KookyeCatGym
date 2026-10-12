@@ -1,26 +1,78 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, Mail, User as UserIcon, Check } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, Check, Fingerprint } from 'lucide-react';
 import * as api from '../api/client';
 import { AuthUser } from '../auth';
 import { useLegal } from '../context/LegalContext';
 import LegalFooterLinks from './legal/LegalFooterLinks';
+import { PasskeyOffer } from './PasskeySection';
+import {
+  biometricLabel,
+  isPasskeyAvailable,
+  loginWithPasskey,
+  markPasskeyOfferDone,
+  passkeyOfferDone,
+  preparePasskeyLogin,
+  PasskeyLoginOptions,
+} from '../utils/passkey';
 
 interface AuthGateProps {
   onAuthenticated: (user: AuthUser) => void;
 }
 
-// Registro de nuevos usuarios deshabilitado TEMPORALMENTE. Pon a `true` para
-// volver a habilitarlo. Ojo: esto solo oculta la interfaz; el bloqueo real
-// está en el backend (server/auth.php: REGISTRATION_ENABLED). Para reactivar
-// el registro hay que poner ambos a true.
-const REGISTRATION_ENABLED = false;
-
 export default function AuthGate({ onAuthenticated }: AuthGateProps) {
   const { openLegal } = useLegal();
+  // Si el registro está abierto se decide en el panel de administración
+  // (Usuarios → Ajustes). Esto solo muestra u oculta la interfaz; el bloqueo
+  // real está en el servidor (auth.php). Mientras no responde, cerrado.
+  const [registrationEnabled, setRegistrationEnabled] = useState(false);
+  useEffect(() => {
+    api.getRegistrationStatus().then(setRegistrationEnabled).catch(() => {});
+  }, []);
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Face ID / huella (passkeys). El reto se pide por adelantado: Safari solo
+  // deja pedir la cara/huella justo al tocar el botón (ver utils/passkey.ts).
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+  const [passkeyOptions, setPasskeyOptions] = useState<PasskeyLoginOptions | null>(null);
+  const [offerUser, setOfferUser] = useState<AuthUser | null>(null);
+  const refreshPasskeyOptions = () => {
+    preparePasskeyLogin().then(setPasskeyOptions).catch(() => setPasskeyOptions(null));
+  };
+  useEffect(() => {
+    let timer = 0;
+    isPasskeyAvailable().then((ok) => {
+      setPasskeyAvailable(ok);
+      if (!ok) return;
+      refreshPasskeyOptions();
+      timer = window.setInterval(refreshPasskeyOptions, 240_000);
+    });
+    return () => window.clearInterval(timer);
+  }, []);
+
+  // Tras entrar con contraseña se ofrece (una vez por dispositivo) activar la cara/huella
+  const finishLogin = (user: AuthUser) => {
+    if (passkeyAvailable && !passkeyOfferDone(user.id)) setOfferUser(user);
+    else onAuthenticated(user);
+  };
+
+  const handlePasskeyLogin = async () => {
+    if (!passkeyOptions) return;
+    setError('');
+    setSubmitting(true);
+    try {
+      const user = await loginWithPasskey(passkeyOptions);
+      markPasskeyOfferDone(user.id);
+      onAuthenticated(user);
+    } catch (err: any) {
+      setError(err.message || 'No se pudo iniciar sesión');
+      refreshPasskeyOptions();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Login
   const [identifier, setIdentifier] = useState('');
@@ -34,7 +86,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
   const [acceptedLegal, setAcceptedLegal] = useState(false);
 
   const switchMode = (next: 'login' | 'register') => {
-    if (next === 'register' && !REGISTRATION_ENABLED) return;
+    if (next === 'register' && !registrationEnabled) return;
     setMode(next);
     setError('');
   };
@@ -45,7 +97,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     setSubmitting(true);
     try {
       const user = await api.login(identifier.trim(), loginPassword);
-      onAuthenticated(user);
+      finishLogin(user);
     } catch (err: any) {
       setError(err.message || 'No se pudo iniciar sesión');
     } finally {
@@ -73,7 +125,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     setSubmitting(true);
     try {
       const user = await api.register(username.trim(), email.trim(), regPassword);
-      onAuthenticated(user);
+      finishLogin(user);
     } catch (err: any) {
       setError(err.message || 'No se pudo crear la cuenta');
     } finally {
@@ -105,7 +157,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
           {/* Selector Iniciar sesión / Registrarse. Con el registro
               deshabilitado solo hay una opción, así que no se muestra el selector. */}
-          {REGISTRATION_ENABLED && (
+          {registrationEnabled && !offerUser && (
             <div className="flex p-1.5 gap-1.5 bg-slate-950 border-b border-slate-850">
               <button
                 id="tab-switch-login"
@@ -132,7 +184,11 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
 
           <div className="p-6">
             <AnimatePresence mode="wait">
-              {mode === 'login' || !REGISTRATION_ENABLED ? (
+              {offerUser ? (
+                <motion.div key="passkey-offer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <PasskeyOffer userId={offerUser.id} onDone={() => onAuthenticated(offerUser)} />
+                </motion.div>
+              ) : mode === 'login' || !registrationEnabled ? (
                 <motion.form
                   key="login"
                   initial={{ opacity: 0 }}
@@ -182,6 +238,24 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
                   >
                     {submitting ? 'Entrando...' : 'Entrar'}
                   </button>
+
+                  {passkeyAvailable && (
+                    <>
+                      <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                        <span className="flex-1 h-px bg-slate-800" />o<span className="flex-1 h-px bg-slate-800" />
+                      </div>
+                      <button
+                        id="btn-login-passkey"
+                        type="button"
+                        onClick={handlePasskeyLogin}
+                        disabled={submitting || !passkeyOptions}
+                        className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-100 font-semibold py-3 rounded-lg border border-slate-700 transition-colors cursor-pointer"
+                      >
+                        <Fingerprint className="h-4.5 w-4.5 text-blue-400" />
+                        Entrar con {biometricLabel()}
+                      </button>
+                    </>
+                  )}
                 </motion.form>
               ) : (
                 <motion.form
