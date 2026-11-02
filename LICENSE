@@ -1,28 +1,28 @@
-MIT License
+Copyright (c) 2026 kookyecat. Todos los derechos reservados salvo lo indicado aquí.
 
-Copyright (c) 2026 kookyecat
+Este proyecto (el código de ZGym) se publica bajo la licencia
+Creative Commons Reconocimiento-NoComercial-SinObraDerivada 4.0 Internacional
+(CC BY-NC-ND 4.0).
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Resumen (no sustituye al texto legal):
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+  PUEDES
+    - Copiar y redistribuir el material en cualquier medio o formato.
+    - Usarlo para tu uso personal, el estudio o la investigación.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  CON ESTAS CONDICIONES
+    - Reconocimiento: debes citar al autor, enlazar la licencia e indicar
+      si has hecho cambios.
+    - No comercial: no puedes usarlo con fines comerciales.
+    - Sin obra derivada: si lo remezclas, transformas o creas a partir de él,
+      no puedes distribuir el material modificado.
 
----
+Texto legal completo:
+https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode.es
 
-Nota sobre las imágenes de ejercicios: los GIF/animaciones y las imágenes
-anatómicas NO se incluyen en este repositorio. Pertenecen a sus creadores
-originales (p. ej. ExerciseDB / GymVisual) y se rigen por sus propias licencias.
-La licencia MIT anterior cubre únicamente el código fuente de esta aplicación.
+Excepciones:
+  - Las imágenes, vídeos y animaciones de ejercicios (public/exercises/) y
+    cualquier material de terceros pertenecen a sus autores originales y se
+    rigen por sus propias licencias; esta licencia no los cubre.
+  - Para usos no previstos aquí (p. ej. uso comercial o modificaciones),
+    pide permiso al autor.

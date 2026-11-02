@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/LICENCIA-MIT-2563eb?style=for-the-badge" alt="Licencia del código: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/LICENCIA-CC%20BY--NC--ND%204.0-2563eb?style=for-the-badge" alt="Licencia: CC BY-NC-ND 4.0"></a>
   <a href="public/manifest.json"><img src="https://img.shields.io/badge/PWA-INSTALABLE-7c3aed?style=for-the-badge&logo=pwa&logoColor=white" alt="PWA instalable"></a>
 </p>
 
@@ -116,5 +116,5 @@ Las animaciones e imágenes de ejercicios pertenecen a sus creadores originales
 
 ## Licencia
 
-Código bajo licencia [MIT](LICENSE). Las imágenes/animaciones de ejercicios
+Código bajo licencia [CC BY-NC-ND 4.0](LICENSE): puedes usarlo y compartirlo citando al autor, **sin fines comerciales y sin modificarlo**. Las imágenes/animaciones de ejercicios
 quedan excluidas de dicha licencia (pertenecen a sus autores originales).
