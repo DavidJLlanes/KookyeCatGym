@@ -1,4 +1,4 @@
-node_modules/
+﻿node_modules/
 build/
 dist/
 coverage/
@@ -8,13 +8,12 @@ coverage/
 !.env.example
 
 # --- Medios/datos excluidos del repo publico (anadelos localmente) ---
-/public/muscle-anatomy/
 /public/yo.webp
 /public/user-photo.webp
 /public/social-preview.jpg
 /scripts/
 
-# Copias de seguridad y restos locales (pesan mucho o no son código)
+# Copias de seguridad y restos locales (pesan mucho o no son cÃ³digo)
 /imagenes_backup/
 .t_ssr*.mjs
 *.bak

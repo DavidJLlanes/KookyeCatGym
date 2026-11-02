@@ -104,10 +104,10 @@ apunta a estos nombres, donde `<id>` es el número del ejercicio (p. ej. `0025`)
 
 - `public/exercises/clip/<id>.mp4` — vídeo corto de cada ejercicio
 - `public/exercises/still/<id>.webp` — fotograma estático (miniatura)
+- `public/muscle-anatomy/<zona>.webp` — imágenes anatómicas por zona muscular (18 archivos)
 
 Lo siguiente **no** se incluye y se añade aparte en `public/`:
 
-- `public/muscle-anatomy/<zona>.webp` — imágenes anatómicas por zona muscular (18 archivos)
 - `public/user-photo.webp` — foto opcional del usuario para las tarjetas
   (si falta, la tarjeta se genera sin foto)
 
