@@ -1,6 +1,7 @@
 import { WorkoutSet } from '../types';
+import { raiseOnStack } from './weightStack';
 
-export type ProgressionType = 'linear' | 'greyskull' | 'double_progression';
+export type ProgressionType = 'linear' | 'greyskull' | 'double_progression' | 'triple';
 
 export interface ProgressionRule {
   exerciseId: string;
@@ -11,6 +12,11 @@ export interface ProgressionRule {
   // Double progression: increase reps first, then weight
   targetReps?: number; // when reached, jump weight and drop reps
   repIncrement?: number; // reps added per session
+  // Triple progression (reps → series → carga): rango de repeticiones
+  // [minReps, targetReps] y de series de trabajo [minSets, maxSets].
+  minReps?: number;
+  minSets?: number;
+  maxSets?: number;
 }
 
 export interface ProgressedSet extends WorkoutSet {
@@ -169,15 +175,29 @@ export function getProgressionSuggestions(
 export function prefillWithProgression(
   baseSets: WorkoutSet[],
   lastSets: WorkoutSet[] | null,
-  rule?: ProgressionRule
+  rule?: ProgressionRule,
+  // Pila de pesas de la máquina (si la tiene): los aumentos de peso saltan a un
+  // peso que la máquina realmente ofrece.
+  stack?: number[]
 ): WorkoutSet[] {
   if (!lastSets || lastSets.length === 0) return baseSets;
 
-  const next = rule?.enabled ? progressSets(lastSets, rule) : lastSets;
+  const next = rule?.enabled ? progressSets(lastSets, rule, stack) : lastSets;
+
+  // La triple progresión cambia el NÚMERO de series: se sigue el resultado y se
+  // usa la rutina solo como plantilla (tipo y descanso de cada serie).
+  if (rule?.enabled && rule.type === 'triple') {
+    const template = baseSets[baseSets.length - 1];
+    return next.map((ref, idx) => {
+      const base = baseSets[idx] ?? template;
+      return { ...base, id: baseSets[idx]?.id ?? `${base.id}-p${idx}`, weight: ref.weight, reps: ref.reps, ...(ref.distance !== undefined ? { distance: ref.distance } : {}), completed: false };
+    });
+  }
 
   return baseSets.map((set, idx) => {
     const ref = next[idx] ?? next[next.length - 1];
-    return { ...set, weight: ref.weight, reps: ref.reps };
+    // Cardio: también se recuerda la distancia de la última vez
+    return { ...set, weight: ref.weight, reps: ref.reps, ...(ref.distance !== undefined ? { distance: ref.distance } : {}) };
   });
 }
 
@@ -186,41 +206,80 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 // Progresión serie a serie. En las reglas con dos fases (doble progresión y
 // Greyskull) el peso solo sube cuando TODAS las series de trabajo han llegado
 // al objetivo; mientras tanto, cada serie suma repeticiones por separado.
-function progressSets(lastSets: WorkoutSet[], rule: ProgressionRule): WorkoutSet[] {
+export function progressSets(lastSets: WorkoutSet[], rule: ProgressionRule, stack?: number[]): WorkoutSet[] {
   const working = lastSets.filter((s) => !s.isWarmup);
   const reference = working.length > 0 ? working : lastSets;
   const allReach = (target: number) => reference.every((s) => s.reps >= target);
   const inc = rule.weightIncrement || 2.5;
+  // Con pila de pesas, el aumento salta al siguiente peso que la máquina tiene
+  const bump = (w: number) => (stack && stack.length > 0 ? raiseOnStack(w, inc, stack) : round1(w + inc));
 
   switch (rule.type) {
     case 'linear':
-      return lastSets.map((s) => (s.isWarmup ? s : { ...s, weight: round1(s.weight + inc) }));
+      return lastSets.map((s) => (s.isWarmup ? s : { ...s, weight: bump(s.weight) }));
 
     case 'double_progression': {
       const target = rule.targetReps || 12;
       const repInc = rule.repIncrement || 1;
       if (allReach(target)) {
         const resetReps = Math.max(1, target - 4);
-        return lastSets.map((s) => (s.isWarmup ? s : { ...s, weight: round1(s.weight + inc), reps: resetReps }));
+        return lastSets.map((s) => (s.isWarmup ? s : { ...s, weight: bump(s.weight), reps: resetReps }));
       }
       return lastSets.map((s) => (s.isWarmup ? s : { ...s, reps: Math.min(target, s.reps + repInc) }));
     }
 
     case 'greyskull':
       if (allReach(5)) {
-        return lastSets.map((s) => (s.isWarmup ? s : { ...s, weight: round1(s.weight + 2.5), reps: 3 }));
+        return lastSets.map((s) => (s.isWarmup ? s : { ...s, weight: stack && stack.length > 0 ? raiseOnStack(s.weight, 2.5, stack) : round1(s.weight + 2.5), reps: 3 }));
       }
       return lastSets.map((s) => (s.isWarmup ? s : { ...s, reps: Math.min(5, s.reps + 1) }));
+
+    case 'triple':
+      return progressTriple(lastSets, rule, bump);
 
     default:
       return lastSets;
   }
 }
 
+// Triple progresión: primero repeticiones, luego series, por último carga.
+//  1. Mientras alguna serie no llegue a las reps máximas, cada serie suma reps.
+//  2. Con todas las series en el máximo y por debajo del tope de series, se AÑADE
+//     una serie y las repeticiones vuelven al mínimo (más volumen, misma carga).
+//  3. Con el tope de series y todas en el máximo de reps, sube la CARGA y se
+//     vuelve a las series y repeticiones mínimas.
+// Una serie que no llega al máximo nunca añade carga ni series.
+function progressTriple(lastSets: WorkoutSet[], rule: ProgressionRule, bump: (w: number) => number): WorkoutSet[] {
+  const maxReps = rule.targetReps || 12;
+  const minReps = Math.min(rule.minReps || 8, maxReps);
+  const minSets = Math.max(1, rule.minSets || 3);
+  const maxSets = Math.max(minSets, rule.maxSets || 5);
+  const repInc = rule.repIncrement || 1;
+
+  const work = lastSets.filter((s) => !s.isWarmup);
+  if (work.length === 0) return lastSets;
+  const everyAtMax = work.every((s) => s.reps >= maxReps);
+
+  let nextWork: WorkoutSet[];
+  if (!everyAtMax) {
+    nextWork = work.map((s) => ({ ...s, reps: Math.min(maxReps, s.reps + repInc) }));
+  } else if (work.length < maxSets) {
+    const added: WorkoutSet = { ...work[work.length - 1], id: `${work[work.length - 1].id}-n${work.length}`, completed: false };
+    nextWork = [...work, added].map((s) => ({ ...s, reps: minReps }));
+  } else {
+    nextWork = work.slice(0, minSets).map((s) => ({ ...s, weight: bump(s.weight), reps: minReps }));
+    while (nextWork.length < minSets) nextWork.push({ ...nextWork[nextWork.length - 1], id: `${nextWork[nextWork.length - 1].id}-n${nextWork.length}` });
+  }
+
+  // Los calentamientos se quedan como estaban, delante
+  return [...lastSets.filter((s) => s.isWarmup), ...nextWork];
+}
+
 export const PROGRESSION_TYPE_LABEL: Record<ProgressionType, string> = {
   linear: 'Progresión lineal',
   greyskull: 'Greyskull LP',
   double_progression: 'Progresión doble',
+  triple: 'Progresión triple (reps, series, carga)',
 };
 
 export function defaultProgressionRule(exerciseId: string): ProgressionRule {
@@ -245,6 +304,8 @@ export function describeProgression(rule: ProgressionRule): string {
       return `Greyskull LP: Aumenta reps primero, luego peso`;
     case 'double_progression':
       return `Progresión doble: Aumenta reps hasta ${rule.targetReps}, luego +${rule.weightIncrement || 2.5}kg`;
+    case 'triple':
+      return `Progresión triple: reps ${rule.minReps || 8}-${rule.targetReps || 12}, luego series ${rule.minSets || 3}-${rule.maxSets || 5}, luego +${rule.weightIncrement || 2.5}kg`;
     default:
       return 'Sin progresión';
   }
@@ -264,6 +325,16 @@ export function validateProgressionRule(rule: ProgressionRule): string[] {
     if (!rule.weightIncrement || rule.weightIncrement <= 0) {
       errors.push('Incremento de peso debe ser > 0');
     }
+  }
+
+  if (rule.type === 'triple') {
+    const minReps = rule.minReps || 8;
+    const maxReps = rule.targetReps || 12;
+    const minSets = rule.minSets || 3;
+    const maxSets = rule.maxSets || 5;
+    if (minReps < 1 || maxReps <= minReps) errors.push('Las reps máximas deben superar a las mínimas');
+    if (minSets < 1 || maxSets <= minSets) errors.push('Las series máximas deben superar a las mínimas');
+    if (!rule.weightIncrement || rule.weightIncrement <= 0) errors.push('Incremento de peso debe ser > 0');
   }
 
   if (rule.type === 'double_progression') {

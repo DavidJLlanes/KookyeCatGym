@@ -8,12 +8,16 @@ coverage/
 !.env.example
 
 # --- Medios/datos excluidos del repo publico (anadelos localmente) ---
-/public/exercises/
 /public/muscle-anatomy/
 /public/yo.webp
 /public/user-photo.webp
 /public/social-preview.jpg
 /scripts/
+
+# Copias de seguridad y restos locales (pesan mucho o no son código)
+/imagenes_backup/
+.t_ssr*.mjs
+*.bak
 
 # Bases de datos locales
 *.db

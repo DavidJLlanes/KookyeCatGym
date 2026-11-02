@@ -6,6 +6,7 @@ import { AdminUserRow } from '../api/client';
 import { AuthUser } from '../auth';
 import { Exercise } from '../types';
 import ConfirmDialog from './ConfirmDialog';
+import ScrollRow from './ScrollRow';
 import { AdminStatsSection, AdminAuditSection, AdminSettingsSection } from './AdminSections';
 
 interface UserManagementPanelProps {
@@ -143,10 +144,12 @@ export default function UserManagementPanel({ currentUser, exercises = [] }: Use
         )}
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      <ScrollRow scrollerClassName="flex gap-2 pb-1 -mx-1 px-1" scrollerProps={{ role: 'tablist' }}>
         {ADMIN_TABS.map((t) => (
           <button
             key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap border transition-colors cursor-pointer ${
               tab === t.id
@@ -158,7 +161,7 @@ export default function UserManagementPanel({ currentUser, exercises = [] }: Use
             {t.label}
           </button>
         ))}
-      </div>
+      </ScrollRow>
 
       {tab === 'stats' && <AdminStatsSection />}
       {tab === 'audit' && <AdminAuditSection />}

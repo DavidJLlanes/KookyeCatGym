@@ -16,6 +16,8 @@ hevy-workout-tracker/
 │   ├── logs.php
 │   ├── exercises.php
 │   ├── active-workout.php
+│   ├── progression.php
+│   ├── userdata.php
 │   ├── index.php
 │   ├── .htaccess
 │   └── README.md
@@ -69,6 +71,12 @@ donde `<token>` es el token de sesión devuelto por `auth/login` o `auth/registe
 - `GET /api/logs` - Obtener tu historial
 - `POST /api/logs` - Guardar entrenamiento
 - `DELETE /api/logs` - Eliminar entrenamiento del historial
+- `GET /api/progression-rules` - Tus reglas de progresión (lineal, doble, Greyskull o triple)
+- `POST /api/progression-rules` - Guardar la regla de un ejercicio
+- `DELETE /api/progression-rules` - Borrar la regla de un ejercicio
+- `GET /api/user-data` - Tus datos propios como `{ clave: valor }`: peso corporal y objetivo, favoritos,
+  equipamiento, rotación, plan semanal, semanas de descarga y pilas de pesas
+- `POST /api/user-data` - Guardar un documento (`key`, `value`; clave `a-z0-9_-`, máx. 1 MB)
 - `GET /api/active-workout` - Obtener tu entrenamiento activo
 - `POST /api/active-workout` - Guardar entrenamiento activo
 - `DELETE /api/active-workout` - Limpiar entrenamiento activo

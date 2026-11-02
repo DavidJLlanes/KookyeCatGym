@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Info, Plus, Dumbbell, Clock, ChevronRight, X, Sparkles, Check, Brain } from 'lucide-react';
-import { Exercise } from '../types';
-import { MUSCLE_GROUPS, EQUIPMENT_TYPES, getMuscleColor } from '../data/exerciseMeta';
+import { Search, Info, Plus, Dumbbell, Clock, ChevronRight, X, Sparkles, Check, Brain, Star, Package, History } from 'lucide-react';
+import { Exercise, WorkoutLog } from '../types';
+import ExerciseHistoryModal from './ExerciseHistoryModal';
+import { MUSCLE_GROUPS, EQUIPMENT_TYPES, EXERCISE_CATEGORIES, getMuscleColor } from '../data/exerciseMeta';
+import MuscleZoneImage from './MuscleZoneImage';
 import ExerciseAIVisualizer from './ExerciseAIVisualizer';
 import ExerciseCardThumbnail from './ExerciseCardThumbnail';
 import { useLightbox } from '../context/LightboxContext';
 import ExerciseMediaSection from './ExerciseMediaSection';
 import type { MediaItem } from '../api/client';
-import { detectMuscleZone, MuscleZone, MUSCLE_GROUP_ZONES, MUSCLE_ZONE_IMAGE, MUSCLE_ZONE_LABEL } from '../utils/muscleZone';
+import { detectMuscleZone, MuscleZone, MUSCLE_GROUP_ZONES, MUSCLE_ZONE_LABEL } from '../utils/muscleZone';
+import { useUserData } from '../context/UserDataContext';
+import { ALWAYS_AVAILABLE, canDoWithEquipment, toggleFavorite, toggleOwned } from '../utils/equipment';
 
 interface ExerciseLibraryPanelProps {
   exercises: Exercise[];
@@ -20,6 +24,8 @@ interface ExerciseLibraryPanelProps {
   onUploadMedia?: (exerciseId: string, file: File, onProgress: (fraction: number) => void) => Promise<void>;
   onDeleteMedia?: (id: string) => Promise<void>;
   onSetPrimaryMedia?: (id: string) => Promise<void>;
+  // Si se da el historial de entrenamientos, cada ejercicio tiene su botón «Historial»
+  logs?: WorkoutLog[];
 }
 
 export default function ExerciseLibraryPanel({
@@ -31,11 +37,20 @@ export default function ExerciseLibraryPanel({
   onUploadMedia,
   onDeleteMedia,
   onSetPrimaryMedia,
+  logs,
 }: ExerciseLibraryPanelProps) {
+  const [historyFor, setHistoryFor] = useState<Exercise | null>(null);
   const { openLightbox } = useLightbox();
+  const { data: userData, setValue } = useUserData();
+  const favorites = userData.favorites;
+  const myEquipment = userData['my-equipment'];
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [showMyEquipment, setShowMyEquipment] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState<string>('Todos');
   const [selectedEquipment, setSelectedEquipment] = useState<string>('Todos');
+  // Tipo de ejercicio (fuerza, estiramiento, yoga...). Los ejercicios sin tipo solo salen en "Todos".
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   // Filtro de segundo nivel: sub-músculo concreto dentro del grupo elegido.
   const [selectedZone, setSelectedZone] = useState<MuscleZone | 'Todas'>('Todas');
 
@@ -73,13 +88,22 @@ export default function ExerciseLibraryPanel({
   const [newInstructions, setNewInstructions] = useState('');
 
   // Filtering
-  const filteredExercises = exercises.filter((ex) => {
-    const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase());
+  const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
+  const filteredExercises = useMemo(() => {
+    const list = exercises.filter((ex) => {
+    const q = search.toLowerCase();
+    const matchesSearch = ex.name.toLowerCase().includes(q);
     const matchesMuscle = selectedMuscle === 'Todos' || ex.muscleGroup === selectedMuscle;
     const matchesEquipment = selectedEquipment === 'Todos' || ex.equipment === selectedEquipment;
+    const matchesCategory = selectedCategory === 'Todos' || ex.category === selectedCategory;
     const matchesZone = selectedZone === 'Todas' || zoneByExerciseId.get(ex.id) === selectedZone;
-    return matchesSearch && matchesMuscle && matchesEquipment && matchesZone;
-  });
+    const matchesFavorite = !onlyFavorites || favoriteSet.has(ex.id);
+    const matchesOwned = canDoWithEquipment(ex, myEquipment);
+    return matchesSearch && matchesMuscle && matchesEquipment && matchesCategory && matchesZone && matchesFavorite && matchesOwned;
+    });
+    // Los favoritos van primero (el orden del resto se mantiene)
+    return favoriteSet.size > 0 ? [...list.filter((e) => favoriteSet.has(e.id)), ...list.filter((e) => !favoriteSet.has(e.id))] : list;
+  }, [exercises, search, selectedMuscle, selectedEquipment, selectedCategory, selectedZone, onlyFavorites, favoriteSet, myEquipment, zoneByExerciseId]);
 
   // Renderizado incremental: con 873 ejercicios, montar todas las tarjetas de
   // golpe (imágenes incluidas) hacía la pestaña lenta al abrir y al hacer
@@ -91,7 +115,7 @@ export default function ExerciseLibraryPanel({
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [search, selectedMuscle, selectedEquipment, selectedZone]);
+  }, [search, selectedMuscle, selectedEquipment, selectedCategory, selectedZone, onlyFavorites, myEquipment]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -151,20 +175,16 @@ export default function ExerciseLibraryPanel({
       {/* Header section with Search and Create button */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Dumbbell className="h-6 w-6 text-blue-400" />
-            Biblioteca de Ejercicios
+          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-start gap-2 leading-tight">
+            <Dumbbell className="h-6 w-6 shrink-0 text-blue-400 mt-0.5" />
+            <span className="min-w-0">Biblioteca de Ejercicios</span>
           </h2>
           <p className="text-sm text-slate-400">
             Explora {exercises.length} movimientos de alta calidad o añade tus propios ejercicios personalizados.
           </p>
         </div>
-        <button
-          id="btn-create-exercise"
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-blue-500/10 self-start md:self-auto cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
+        <button id="btn-create-exercise" onClick={() => setShowCreateModal(true)} className="btn btn-primary w-full sm:w-auto sm:self-start md:self-auto">
+          <Plus />
           Añadir Ejercicio
         </button>
       </div>
@@ -212,6 +232,59 @@ export default function ExerciseLibraryPanel({
             </button>
           </div>
         </div>
+
+        {/* Lo tuyo: favoritos y el material que tienes */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setOnlyFavorites(!onlyFavorites)}
+            aria-pressed={onlyFavorites}
+            className={`flex min-h-[2.5rem] items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer border ${
+              onlyFavorites ? 'bg-amber-500 border-amber-400 text-slate-950 font-bold' : 'bg-slate-950 border-slate-850 text-slate-400 hover:bg-slate-800'
+            }`}
+          >
+            <Star className="h-3.5 w-3.5" fill={onlyFavorites ? 'currentColor' : 'none'} />
+            Favoritos{favorites.length > 0 ? ` (${favorites.length})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => setValue('my-equipment', { ...myEquipment, enabled: !myEquipment.enabled })}
+            aria-pressed={myEquipment.enabled}
+            className={`flex min-h-[2.5rem] items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer border ${
+              myEquipment.enabled ? 'bg-emerald-600 border-emerald-500 text-white font-bold' : 'bg-slate-950 border-slate-850 text-slate-400 hover:bg-slate-800'
+            }`}
+          >
+            <Package className="h-3.5 w-3.5 shrink-0" />
+            Mi equipamiento
+          </button>
+          <button type="button" onClick={() => setShowMyEquipment(!showMyEquipment)} aria-expanded={showMyEquipment} className="col-span-2 text-left text-xs font-bold text-blue-400 hover:text-blue-300 cursor-pointer py-1">
+            {showMyEquipment ? 'Cerrar la lista de mi equipamiento' : 'Elegir qué material tengo →'}
+          </button>
+        </div>
+        {showMyEquipment && (
+          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+            <p className="text-xs text-slate-400">Marca lo que tienes. Con «Solo mi equipamiento» activo, el catálogo y los filtros solo enseñan lo que puedes hacer. El peso corporal siempre está disponible.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {EQUIPMENT_TYPES.filter((eq) => eq !== ALWAYS_AVAILABLE).map((eq) => {
+                const owned = myEquipment.owned.includes(eq);
+                return (
+                  <button
+                    key={eq}
+                    type="button"
+                    onClick={() => setValue('my-equipment', toggleOwned(myEquipment, eq))}
+                    aria-pressed={owned}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer border ${
+                      owned ? 'bg-emerald-600/20 border-emerald-500/60 text-emerald-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'
+                    }`}
+                  >
+                    {owned && <Check className="inline h-3 w-3 mr-1" />}
+                    {eq}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider w-full mb-1">
@@ -279,11 +352,9 @@ export default function ExerciseLibraryPanel({
                         : 'bg-slate-950 border-slate-850 text-slate-400 hover:bg-slate-800'
                     }`}
                   >
-                    <img
-                      src={MUSCLE_ZONE_IMAGE[zone]}
-                      alt=""
-                      loading="lazy"
-                      className="h-7 w-7 rounded-full object-contain bg-white border border-slate-700 shrink-0"
+                    <MuscleZoneImage
+                      zone={zone}
+                      className="h-7 w-7 rounded-full object-contain bg-white border border-slate-700 shrink-0 overflow-hidden"
                     />
                     {MUSCLE_ZONE_LABEL[zone]}
                   </button>
@@ -321,6 +392,25 @@ export default function ExerciseLibraryPanel({
             </button>
           ))}
         </div>
+
+        <div className="flex flex-wrap gap-2">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider w-full mb-1">
+            Tipo de ejercicio
+          </div>
+          {['Todos', ...EXERCISE_CATEGORIES].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
+                selectedCategory === cat
+                  ? 'bg-blue-600 border-blue-500 text-white'
+                  : 'bg-slate-950 border-slate-850 text-slate-400 hover:bg-slate-800'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Exercise grid */}
@@ -349,15 +439,31 @@ export default function ExerciseLibraryPanel({
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-200 uppercase tracking-wider bg-slate-950/90 backdrop-blur-sm border border-slate-800/85">
                     {ex.equipment}
                   </span>
+                  {ex.category && (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold text-blue-200 uppercase tracking-wider bg-blue-950/60 border border-blue-500/20">
+                      {ex.category}
+                    </span>
+                  )}
                   {ex.isCustom && (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-wider bg-blue-600/90 backdrop-blur-sm flex items-center gap-0.5 shadow-md">
                       <Sparkles className="h-2.5 w-2.5" /> Personalizado
                     </span>
                   )}
                 </div>
-                <h3 className="font-extrabold text-slate-100 line-clamp-2 group-hover:text-blue-400 transition-colors text-sm sm:text-base">
-                  {ex.name}
-                </h3>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-extrabold text-slate-100 line-clamp-2 group-hover:text-blue-400 transition-colors text-sm sm:text-base">
+                    {ex.name}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setValue('favorites', toggleFavorite(favorites, ex.id))}
+                    aria-pressed={favoriteSet.has(ex.id)}
+                    aria-label={favoriteSet.has(ex.id) ? `Quitar ${ex.name} de favoritos` : `Añadir ${ex.name} a favoritos`}
+                    className={`shrink-0 p-1 -mt-0.5 -mr-1 rounded-lg cursor-pointer ${favoriteSet.has(ex.id) ? 'text-amber-400' : 'text-slate-600 hover:text-amber-300'}`}
+                  >
+                    <Star className="h-5 w-5" fill={favoriteSet.has(ex.id) ? 'currentColor' : 'none'} />
+                  </button>
+                </div>
                 <div className="flex items-center gap-1.5 text-slate-400 text-xs mt-1">
                   <Clock className="h-3.5 w-3.5 text-blue-400" />
                   <span>Descanso sugerido: {ex.defaultRestTime}s</span>
@@ -373,6 +479,15 @@ export default function ExerciseLibraryPanel({
                   <Info className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                   Instrucciones
                 </button>
+                {logs && (
+                  <button
+                    onClick={() => setHistoryFor(ex)}
+                    className="flex-1 min-w-[112px] flex items-center justify-center gap-1.5 px-3 py-2.5 bg-slate-950 hover:bg-slate-850 text-slate-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-slate-800 whitespace-nowrap"
+                  >
+                    <History className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                    Historial
+                  </button>
+                )}
                 {selectable && onSelectExercise && (
                   <button
                     onClick={() => onSelectExercise(ex)}
@@ -454,13 +569,28 @@ export default function ExerciseLibraryPanel({
               <div className="relative">
                 {viewingMode === 'photo' ? (
                   <div className="relative h-[320px] w-full bg-slate-950">
-                    <img
-                      src={viewingExercise.imageUrl}
-                      alt={viewingExercise.name}
-                      referrerPolicy="no-referrer"
-                      onClick={() => openLightbox(viewingExercise.imageUrl, viewingExercise.name)}
-                      className="w-full h-full object-contain cursor-zoom-in"
-                    />
+                    {viewingExercise.videoUrl ? (
+                      <video
+                        key={viewingExercise.videoUrl}
+                        src={viewingExercise.videoUrl}
+                        poster={viewingExercise.imageUrl}
+                        aria-label={viewingExercise.name}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        onClick={() => openLightbox(viewingExercise.imageUrl, viewingExercise.name, viewingExercise.videoUrl)}
+                        className="w-full h-full object-contain cursor-zoom-in bg-white"
+                      />
+                    ) : (
+                      <img
+                        src={viewingExercise.imageUrl}
+                        alt={viewingExercise.name}
+                        referrerPolicy="no-referrer"
+                        onClick={() => openLightbox(viewingExercise.imageUrl, viewingExercise.name)}
+                        className="w-full h-full object-contain cursor-zoom-in"
+                      />
+                    )}
                     <div className="absolute bottom-4 left-4 flex gap-2">
                       <span
                         className="px-2.5 py-1 rounded-full text-xs font-bold text-white shadow-md"
@@ -487,6 +617,20 @@ export default function ExerciseLibraryPanel({
                     <Clock className="h-3.5 w-3.5 text-blue-400" />
                     Descanso por defecto: <strong>{viewingExercise.defaultRestTime} segundos</strong>
                   </p>
+                  {viewingExercise.category && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      Tipo: <strong className="text-slate-200">{viewingExercise.category}</strong>
+                      {viewingExercise.hold && <span className="ml-2 text-amber-400">· se mantiene la postura</span>}
+                    </p>
+                  )}
+                  {viewingExercise.secondaryMuscles && viewingExercise.secondaryMuscles.length > 0 && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      Músculos secundarios: <strong className="text-slate-200">{viewingExercise.secondaryMuscles.join(', ')}</strong>
+                    </p>
+                  )}
+                  {viewingExercise.description && (
+                    <p className="text-sm text-slate-300 mt-3 leading-relaxed">{viewingExercise.description}</p>
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -644,6 +788,8 @@ export default function ExerciseLibraryPanel({
           </div>
         )}
       </AnimatePresence>
+
+      {historyFor && logs && <ExerciseHistoryModal exercise={historyFor} logs={logs} onClose={() => setHistoryFor(null)} />}
     </div>
   );
 }

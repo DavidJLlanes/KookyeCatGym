@@ -1,3 +1,4 @@
+import ScrollRow from './ScrollRow';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { WorkoutLog } from '../types';
@@ -138,25 +139,23 @@ export default function ConstancyCalendar({ logs }: ConstancyCalendarProps) {
         </div>
 
         {/* Meses + días: área deslizante horizontalmente (arrastre con ratón o dedo) */}
-        <div className="relative flex-1 min-w-0">
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-900 to-transparent z-10" />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-slate-900 to-transparent z-10" />
-
-          <div
-            ref={scrollRef}
-            id="constancy-calendar"
-            className={`overflow-x-auto select-none [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full ${
-              dragging ? 'cursor-grabbing' : 'cursor-grab'
-            }`}
-            onMouseDown={(e) => onDragStart(e.pageX)}
-            onMouseMove={(e) => {
+        <ScrollRow
+          className="flex-1 min-w-0"
+          fadeFrom="from-slate-900"
+          scrollerRef={scrollRef}
+          scrollerClassName={`select-none ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          scrollerProps={{
+            id: 'constancy-calendar',
+            onMouseDown: (e) => onDragStart(e.pageX),
+            onMouseMove: (e) => {
               if (!dragState.current) return;
               e.preventDefault();
               onDragMove(e.pageX);
-            }}
-            onMouseUp={onDragEnd}
-            onMouseLeave={onDragEnd}
-          >
+            },
+            onMouseUp: onDragEnd,
+            onMouseLeave: onDragEnd,
+          }}
+        >
             <div className="inline-flex flex-col gap-1 px-1">
               {/* Fila de meses */}
               <div className="flex gap-1">
@@ -188,8 +187,7 @@ export default function ConstancyCalendar({ logs }: ConstancyCalendarProps) {
                 ))}
               </div>
             </div>
-          </div>
-        </div>
+        </ScrollRow>
       </div>
 
       <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold">

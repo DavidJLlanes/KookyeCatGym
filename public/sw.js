@@ -1,7 +1,7 @@
 // Service Worker para Hevy Workout Tracker
 // Permite funcionamiento offline y mejora rendimiento
 
-const CACHE_NAME = 'kookyecatgym-v3';
+const CACHE_NAME = 'kookyecatgym-v5';
 const API_CACHE = 'kookyecatgym-api-v2';
 const CACHE_URLS = [
   '/',
@@ -53,6 +53,12 @@ self.addEventListener('fetch', (event) => {
   // Fotos y vídeos propios: los sirve el servidor con caché larga; los vídeos
   // llegan por rangos (206) que la Cache API no admite.
   if (url.pathname.startsWith('/api/media')) {
+    return;
+  }
+
+  // Vídeos de ejercicios (.mp4): se reproducen por rangos (206), que la Cache
+  // API no admite, así que los gestiona el navegador directamente.
+  if (url.pathname.endsWith('.mp4')) {
     return;
   }
 

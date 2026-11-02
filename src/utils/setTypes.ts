@@ -44,6 +44,16 @@ export function supersetBounds(exercises: WorkoutExercise[], index: number): [nu
 }
 
 /**
+ * Nombre del grupo al que pertenece el ejercicio: dos ejercicios seguidos son una
+ * superserie y tres o más, un circuito (se hacen uno tras otro sin descanso y se
+ * repite la ronda). Los dos usan la misma marca (`supersetId`).
+ */
+export function groupName(exercises: WorkoutExercise[], index: number): 'Superserie' | 'Circuito' {
+  const bounds = supersetBounds(exercises, index);
+  return bounds && bounds[1] - bounds[0] + 1 >= 3 ? 'Circuito' : 'Superserie';
+}
+
+/**
  * Une el ejercicio `index` con el siguiente en una superserie o, si ya lo
  * estaban, los separa. Devuelve una lista nueva; los grupos que se quedan con
  * un solo ejercicio dejan de ser superserie.

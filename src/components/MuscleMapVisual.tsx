@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import BODY_PATHS, { BodyView } from '../data/bodyPaths';
+import { MUSCLE_GROUPS } from '../data/exerciseMeta';
 import {
   MuscleGroupStats,
   BODY_PART_GROUP,
@@ -7,16 +8,25 @@ import {
   getStatusColor,
   formatRecoveryStatus,
   getIntensityRecommendation,
+  PartStatus,
 } from '../utils/muscleStats';
+
+export type MapMode = 'volume' | 'recovery' | 'untrained';
 
 interface MuscleMapVisualProps {
   stats: Map<string, MuscleGroupStats>;
   load: Record<string, number>;
   selectedMuscle?: string;
   onMuscleClick?: (muscle: string) => void;
+  // Qué enseña el mapa: dónde fue el volumen (por defecto), qué sigue
+  // recuperándose o qué se ha quedado sin entrenar.
+  mode?: MapMode;
+  // Para 'recovery' y 'untrained': nivel 1-4 y texto de cada parte.
+  partStatus?: Record<string, PartStatus>;
 }
 
-const INERT = ['head', 'hair', 'neck', 'hands', 'feet', 'knees', 'ankles'];
+// El cuello ya es interactivo (grupo "Cuello")
+const INERT = ['head', 'hair', 'hands', 'feet', 'knees', 'ankles'];
 
 const ACCENT = '#3b82f6';
 const MUSCLE_BASE = '#243044';
@@ -29,9 +39,12 @@ function mix(a: string, b: string, t: number): string {
   return '#' + pa.map((v, i) => Math.round(v * t + pb[i] * (1 - t)).toString(16).padStart(2, '0')).join('');
 }
 
-export const LEVEL_FILL = [MUSCLE_BASE, mix(ACCENT, MUSCLE_BASE, 0.32), mix(ACCENT, MUSCLE_BASE, 0.56), mix(ACCENT, MUSCLE_BASE, 0.78), ACCENT];
+const palette = (accent: string) => [MUSCLE_BASE, mix(accent, MUSCLE_BASE, 0.32), mix(accent, MUSCLE_BASE, 0.56), mix(accent, MUSCLE_BASE, 0.78), accent];
 
-const muscleGroups = ['Pecho', 'Espalda', 'Hombros', 'Brazos', 'Abdomen', 'Piernas'];
+export const LEVEL_FILL = palette(ACCENT);
+// Recuperación en ámbar (cuanto más intenso, más reciente) y sin entrenar en rojo.
+export const RECOVERY_FILL = palette('#f59e0b');
+export const UNTRAINED_FILL = palette('#ef4444');
 
 export function levelOf(value: number, max: number): number {
   if (!value || max <= 0) return 0;
@@ -47,10 +60,12 @@ export function BodySide({
   highlightGroup,
   onHover,
   onPick,
+  fills = LEVEL_FILL,
 }: {
   view: BodyView;
   load: Record<string, number>;
   max: number;
+  fills?: string[];
   highlightGroup?: string | null;
   onHover: (part: string | null) => void;
   onPick: (part: string) => void;
@@ -69,7 +84,7 @@ export function BodySide({
           <path
             key={part + i}
             d={d}
-            fill={LEVEL_FILL[levelOf(load[part], max)]}
+            fill={fills[levelOf(load[part], max)]}
             stroke={selected ? '#e2e8f0' : SEAM}
             strokeWidth={selected ? 6 : 2.5}
             strokeLinejoin="round"
@@ -86,11 +101,15 @@ export function BodySide({
   );
 }
 
-export default function MuscleMapVisual({ stats, load, selectedMuscle, onMuscleClick }: MuscleMapVisualProps) {
+export default function MuscleMapVisual({ stats, load, selectedMuscle, onMuscleClick, mode = 'volume', partStatus }: MuscleMapVisualProps) {
   const [hoveredPart, setHoveredPart] = useState<string | null>(null);
   const [hoveredGroup, setHoveredGroup] = useState<string | null>(null);
 
-  const max = Math.max(0, ...Object.values(load));
+  // En recuperación y sin entrenar el "volumen" de cada parte es su nivel 1-4.
+  const statusLoad = useMemo(() => Object.fromEntries(Object.entries(partStatus ?? {}).map(([p, s]) => [p, s.level])), [partStatus]);
+  const shownLoad = mode === 'volume' ? load : statusLoad;
+  const fills = mode === 'recovery' ? RECOVERY_FILL : mode === 'untrained' ? UNTRAINED_FILL : LEVEL_FILL;
+  const max = mode === 'volume' ? Math.max(0, ...Object.values(load)) : 4;
   const hoverPartGroup = hoveredPart ? BODY_PART_GROUP[hoveredPart] : null;
   const displayMuscle = hoveredGroup || hoverPartGroup || selectedMuscle;
   const displayStat = displayMuscle ? stats.get(displayMuscle) : null;
@@ -104,30 +123,35 @@ export default function MuscleMapVisual({ stats, load, selectedMuscle, onMuscleC
     <div className="space-y-4">
       <div className="relative p-4 bg-slate-900 rounded-lg border border-slate-800">
         <div className="flex gap-2 justify-center">
-          <BodySide view={BODY_PATHS.front} load={load} max={max} highlightGroup={displayMuscle} onHover={setHoveredPart} onPick={pick} />
-          <BodySide view={BODY_PATHS.back} load={load} max={max} highlightGroup={displayMuscle} onHover={setHoveredPart} onPick={pick} />
+          <BodySide view={BODY_PATHS.front} load={shownLoad} max={max} fills={fills} highlightGroup={displayMuscle} onHover={setHoveredPart} onPick={pick} />
+          <BodySide view={BODY_PATHS.back} load={shownLoad} max={max} fills={fills} highlightGroup={displayMuscle} onHover={setHoveredPart} onPick={pick} />
         </div>
 
         <div className="h-5 mt-2 text-center text-xs text-slate-300">
           {hoveredPart && (
             <>
               <span className="font-bold">{BODY_PART_LABEL[hoveredPart] ?? hoveredPart}</span>
-              <span className="text-slate-500"> · {load[hoveredPart] || 0} series</span>
+              <span className="text-slate-500">
+                {' · '}
+                {mode === 'volume'
+                  ? `${Math.round((load[hoveredPart] || 0) * 10) / 10} series`
+                  : partStatus?.[hoveredPart]?.text ?? (mode === 'recovery' ? 'recuperado' : 'al día')}
+              </span>
             </>
           )}
         </div>
 
         <div className="flex items-center justify-center gap-1.5 mt-1 text-[11px] text-slate-500">
-          Menos
-          {LEVEL_FILL.map((c) => (
+          {mode === 'volume' ? 'Menos' : mode === 'recovery' ? 'Recuperado' : 'Al día'}
+          {fills.map((c) => (
             <span key={c} className="w-2.5 h-2.5 rounded-[3px]" style={{ backgroundColor: c }} />
           ))}
-          Más
+          {mode === 'volume' ? 'Más' : mode === 'recovery' ? 'Recién entrenado' : 'Más tiempo sin entrenar'}
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {muscleGroups.map((group) => {
+        {MUSCLE_GROUPS.map((group) => {
           const stat = stats.get(group);
           if (!stat) return null;
           const isSelected = displayMuscle === group;

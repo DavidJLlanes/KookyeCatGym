@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, FileText, ShieldCheck, ScrollText } from 'lucide-react';
 import { LEGAL_DOCUMENTS, LegalPage } from './legalContent';
+import ScrollRow from '../ScrollRow';
 
 interface LegalModalProps {
   activePage: LegalPage | null;
@@ -40,7 +41,7 @@ export default function LegalModal({ activePage, onSelectPage, onClose }: LegalM
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="flex gap-1.5 px-3.5 sm:px-4 pb-3 overflow-x-auto">
+              <ScrollRow fadeFrom="from-slate-900" className="pb-3" scrollerClassName="flex gap-1.5 px-3.5 sm:px-4" scrollerProps={{ role: 'tablist' }}>
                 {TABS.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = tab.page === activePage;
@@ -48,6 +49,8 @@ export default function LegalModal({ activePage, onSelectPage, onClose }: LegalM
                     <button
                       key={tab.page}
                       type="button"
+                      role="tab"
+                      aria-selected={isActive}
                       onClick={() => onSelectPage(tab.page)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                         isActive
@@ -60,7 +63,7 @@ export default function LegalModal({ activePage, onSelectPage, onClose }: LegalM
                     </button>
                   );
                 })}
-              </div>
+              </ScrollRow>
             </div>
 
             {/* Contenido del documento */}

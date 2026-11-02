@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Pause, Square, Plus, Trash2, Dumbbell, Clock, X, ChevronUp, ChevronDown, Check, AlertCircle, Sparkles, History, Gauge, Link2, Link2Off, ClipboardList, Bell, BellOff } from 'lucide-react';
+import { Play, Pause, Square, Calculator, Plus, Trash2, Dumbbell, Clock, X, ChevronUp, ChevronDown, Check, AlertCircle, Sparkles, History, Gauge, Link2, Link2Off, ClipboardList, Bell, BellOff, Repeat } from 'lucide-react';
 import { Routine, Exercise, WorkoutExercise, WorkoutSet, WorkoutLog } from '../types';
 import ExerciseLibraryPanel from './ExerciseLibraryPanel';
 import ConfirmDialog from './ConfirmDialog';
 import DecimalInput from './DecimalInput';
 import { useLightbox } from '../context/LightboxContext';
 import { getStaticThumbUrl } from '../utils/media';
+import { repsColumnLabel, defaultReps, isCardio, isHold, speedKmh, paceMinKm, looksUnilateral } from '../utils/holdSets';
+import DurationInput from './DurationInput';
 import { getLastPerformanceSets } from '../utils/lastPerformance';
 import { ProgressionRule, prefillWithProgression } from '../utils/progressionRules';
 import { detectSetAnomaly } from '../utils/anomaly';
-import { SET_KINDS, SetKind, kindOf, withKind, setLabel, supersetLetters, restAfterSet, toggleSupersetWithNext } from '../utils/setTypes';
+import { SET_KINDS, SetKind, kindOf, withKind, setLabel, supersetLetters, restAfterSet, toggleSupersetWithNext, groupName } from '../utils/setTypes';
 import AnchoredPopover from './AnchoredPopover';
 import SetKindMenu from './SetKindMenu';
 import {
@@ -24,6 +26,13 @@ import {
 import { testPush, MediaItem } from '../api/client';
 import PhotoCaptureButtons from './PhotoCaptureButtons';
 import WorkoutPhotos from './WorkoutPhotos';
+import RestTimePicker from './RestTimePicker';
+import SwipeRow from './SwipeRow';
+import ExerciseHistoryModal from './ExerciseHistoryModal';
+import { swapForAlternative } from '../utils/exerciseSwap';
+import { useUserData } from '../context/UserDataContext';
+import { stepOnStack } from '../utils/weightStack';
+import { MAX_REST_SECONDS, formatRest } from '../utils/restTimes';
 
 // Margen para avisar del fin de un descanso que terminó mientras la app estaba
 // en segundo plano: si al volver han pasado menos de esto, se da el aviso; si
@@ -125,10 +134,16 @@ export default function ActiveWorkoutPanel({
   // (cada ejercicio se puede seguir ajustando individualmente después).
   const [defaultRestSeconds, setDefaultRestSeconds] = useState<number>(() => {
     const saved = parseInt(localStorage.getItem('hevy_default_rest_seconds') || '', 10);
-    return Number.isFinite(saved) && saved > 0 ? saved : 90;
+    return Number.isFinite(saved) && saved >= 0 ? Math.min(MAX_REST_SECONDS, saved) : 90;
   });
+  const [showRestWheel, setShowRestWheel] = useState(false);
+  const [historyFor, setHistoryFor] = useState<Exercise | null>(null);
+  // Última serie borrada, para poder deshacerlo unos segundos
+  const [undoSet, setUndoSet] = useState<{ weId: string; set: WorkoutSet; index: number } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { data: userData } = useUserData();
   const handleChangeDefaultRestSeconds = (seconds: number) => {
-    const clamped = Math.min(600, Math.max(10, seconds));
+    const clamped = Math.min(MAX_REST_SECONDS, Math.max(0, seconds));
     setDefaultRestSeconds(clamped);
     localStorage.setItem('hevy_default_rest_seconds', String(clamped));
     onUpdateWorkout((prev) => {
@@ -139,14 +154,6 @@ export default function ActiveWorkoutPanel({
       };
     });
   };
-  // Texto "en bruto" del input de segundos: se muestra tal cual mientras se
-  // escribe (sin reformatear cada tecla, que "pelea" con el usuario al
-  // sustituir un valor ya existente) y solo se valida/aplica al perder el foco.
-  const [restSecondsText, setRestSecondsText] = useState(String(defaultRestSeconds));
-  const [restSecondsFocused, setRestSecondsFocused] = useState(false);
-  useEffect(() => {
-    if (!restSecondsFocused) setRestSecondsText(String(defaultRestSeconds));
-  }, [defaultRestSeconds, restSecondsFocused]);
 
   // Confirmation state
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -482,7 +489,8 @@ export default function ActiveWorkoutPanel({
 
         // Find default exercise rest timer if no custom one exists
         const matchedEx = exercises.find((e) => e.id === we.exerciseId);
-        const normalRest = we.restTime || matchedEx?.defaultRestTime || 90;
+        // `??` y no `||`: un descanso de 0 s es válido ("sin descanso")
+        const normalRest = we.restTime ?? matchedEx?.defaultRestTime ?? 90;
 
         return {
           ...we,
@@ -490,7 +498,8 @@ export default function ActiveWorkoutPanel({
             if (s.id !== setId) return s;
             const newCompleted = !s.completed;
             // Drop set / rest-pause a continuación o superserie: descanso corto o ninguno
-            targetRestTime = restAfterSet(prev.exercises, exIndex, setIndex, normalRest);
+            // Una serie puede tener su propio descanso (pirámides, etc.)
+            targetRestTime = restAfterSet(prev.exercises, exIndex, setIndex, s.restTime ?? normalRest);
 
             // If checking a set to completed, initiate rest timer! (a menos que esté desactivado)
             if (newCompleted && restTimerEnabled && targetRestTime > 0) {
@@ -512,7 +521,42 @@ export default function ActiveWorkoutPanel({
     });
   };
 
-  const handleUpdateWeightRep = (exerciseInstanceId: string, setId: string, field: 'weight' | 'reps', value: number) => {
+  // Cambia el ejercicio de un hueco por una de sus alternativas (máquina ocupada),
+  // conservando series, repeticiones y descansos. Solo mientras no se haya
+  // completado ninguna serie de ese ejercicio.
+  const handleSwapExercise = (exerciseInstanceId: string, newExerciseId: string) => {
+    const newEx = exercises.find((e) => e.id === newExerciseId);
+    if (!newEx) return;
+    const last = getLastPerformanceSets(newExerciseId, logs);
+    onUpdateWorkout((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises.map((we: WorkoutExercise) =>
+          we.id === exerciseInstanceId && !we.sets.some((s) => s.completed)
+            ? swapForAlternative(we, newExerciseId, newEx.defaultRestTime, last)
+            : we
+        ),
+      };
+    });
+  };
+
+  // Reps por lado (zancadas, trabajo a una mano...)
+  const handleTogglePerSide = (exerciseInstanceId: string) => {
+    onUpdateWorkout((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises.map((w: WorkoutExercise) => {
+          if (w.id !== exerciseInstanceId) return w;
+          const { perSide: _p, ...rest } = w;
+          return w.perSide ? rest : { ...rest, perSide: true };
+        }),
+      };
+    });
+  };
+
+  const handleUpdateWeightRep = (exerciseInstanceId: string, setId: string, field: 'weight' | 'reps' | 'distance', value: number) => {
     onUpdateWorkout((prev) => {
       if (!prev) return prev;
       return {
@@ -600,17 +644,63 @@ export default function ActiveWorkoutPanel({
   };
 
   const handleRemoveSet = (exerciseInstanceId: string, setId: string) => {
+    const we = activeWorkout?.exercises.find((x) => x.id === exerciseInstanceId);
+    const index = we ? we.sets.findIndex((s) => s.id === setId) : -1;
+    if (!we || index < 0 || we.sets.length <= 1) return;
+    const removed = we.sets[index];
     onUpdateWorkout((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        exercises: prev.exercises.map((we: WorkoutExercise) => {
-          if (we.id !== exerciseInstanceId) return we;
-          if (we.sets.length <= 1) return we;
+        exercises: prev.exercises.map((w: WorkoutExercise) => {
+          if (w.id !== exerciseInstanceId) return w;
+          if (w.sets.length <= 1) return w;
           return {
-            ...we,
-            sets: we.sets.filter((s: WorkoutSet) => s.id !== setId),
+            ...w,
+            sets: w.sets.filter((s: WorkoutSet) => s.id !== setId),
           };
+        }),
+      };
+    });
+    setUndoSet({ weId: exerciseInstanceId, set: removed, index });
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setUndoSet(null), 6000);
+  };
+
+  const handleUndoRemoveSet = () => {
+    if (!undoSet) return;
+    const { weId, set, index } = undoSet;
+    onUpdateWorkout((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises.map((w: WorkoutExercise) => {
+          if (w.id !== weId || w.sets.some((s) => s.id === set.id)) return w;
+          const sets = [...w.sets];
+          sets.splice(Math.min(index, sets.length), 0, set);
+          return { ...w, sets };
+        }),
+      };
+    });
+    setUndoSet(null);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+  };
+
+  // Copia una serie justo debajo, con los mismos valores y sin marcar
+  const handleDuplicateSet = (exerciseInstanceId: string, setId: string) => {
+    onUpdateWorkout((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises.map((w: WorkoutExercise) => {
+          if (w.id !== exerciseInstanceId) return w;
+          const index = w.sets.findIndex((s) => s.id === setId);
+          if (index < 0) return w;
+          const { rpe: _rpe, ...rest } = w.sets[index];
+          const copy: WorkoutSet = { ...rest, id: `set-copy-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, completed: false };
+          const sets = [...w.sets];
+          sets.splice(index + 1, 0, copy);
+          return { ...w, sets };
         }),
       };
     });
@@ -622,18 +712,20 @@ export default function ActiveWorkoutPanel({
       // Igual que al iniciar una rutina: si ya se ha entrenado antes este
       // ejercicio, los campos vienen con los pesos/repeticiones de la última vez.
       const baseSets: WorkoutSet[] = [
-        { id: `set-act-${Date.now()}-1`, weight: 0, reps: 10, completed: false },
-        { id: `set-act-${Date.now()}-2`, weight: 0, reps: 10, completed: false },
-        { id: `set-act-${Date.now()}-3`, weight: 0, reps: 10, completed: false },
+        { id: `set-act-${Date.now()}-1`, weight: 0, reps: defaultReps(ex), completed: false },
+        { id: `set-act-${Date.now()}-2`, weight: 0, reps: defaultReps(ex), completed: false },
+        { id: `set-act-${Date.now()}-3`, weight: 0, reps: defaultReps(ex), completed: false },
       ];
       const newWe: WorkoutExercise = {
         id: `we-active-${Date.now()}`,
         exerciseId: ex.id,
         restTime: ex.defaultRestTime,
+        ...(looksUnilateral(ex.name) && !isHold(ex) ? { perSide: true } : {}),
         sets: prefillWithProgression(
           baseSets,
           getLastPerformanceSets(ex.id, logs),
-          progressionRules.find((r) => r.exerciseId === ex.id)
+          progressionRules.find((r) => r.exerciseId === ex.id),
+          userData['weight-stacks'][ex.id]
         ),
       };
       return {
@@ -655,6 +747,8 @@ export default function ActiveWorkoutPanel({
         exerciseId: re.exerciseId,
         restTime: re.restTime,
         ...(re.supersetId ? { supersetId: `${re.supersetId}-${stamp}` } : {}),
+        ...(re.alternativeIds && re.alternativeIds.length > 0 ? { alternativeIds: re.alternativeIds } : {}),
+        ...(re.perSide ? { perSide: true } : {}),
         sets: prefillWithProgression(
           re.sets.map((s, j) => ({
             id: `set-act-${stamp}-${i}-${j}`,
@@ -663,9 +757,12 @@ export default function ActiveWorkoutPanel({
             completed: false,
             ...(s.isWarmup ? { isWarmup: true } : {}),
             ...(s.setType ? { setType: s.setType } : {}),
+            ...(s.restTime !== undefined ? { restTime: s.restTime } : {}),
+            ...(s.distance !== undefined ? { distance: s.distance } : {}),
           })),
           getLastPerformanceSets(re.exerciseId, logs),
-          progressionRules.find((r) => r.exerciseId === re.exerciseId)
+          progressionRules.find((r) => r.exerciseId === re.exerciseId),
+          userData['weight-stacks'][re.exerciseId]
         ),
       }));
       const alreadyNamed = prev.routineName.split(' + ').includes(routine.name);
@@ -808,26 +905,27 @@ export default function ActiveWorkoutPanel({
     <>
       {/* 1. COLLAPSED FLOATING HUD AT THE BOTTOM (evita la barra de pestañas móvil y el home indicator de iOS) */}
       {!isExpanded && (
-        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-4 left-4 right-4 z-40 bg-slate-900 text-white rounded-2xl p-4 shadow-xl border border-slate-800 flex items-center justify-between gap-3 max-w-xl mx-auto">
+        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-4 left-3 right-3 z-40 bg-slate-900 text-white rounded-2xl p-3 shadow-xl border border-slate-700 flex items-center justify-between gap-2 max-w-xl mx-auto">
           <div className="flex items-center gap-3 min-w-0" onClick={() => setIsExpanded(true)}>
-            <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center animate-pulse shrink-0">
+            <div className="hidden min-[400px]:flex h-10 w-10 bg-blue-600 rounded-lg items-center justify-center animate-pulse shrink-0">
               <Dumbbell className="h-5 w-5 text-white" />
             </div>
             <div className="cursor-pointer text-left min-w-0">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider truncate">Entrenamiento Activo</div>
-              <div className="font-bold text-sm truncate">{activeWorkout.routineName}</div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide leading-tight truncate">Entrenamiento activo</div>
+              <div className="font-bold text-sm leading-tight truncate">{activeWorkout.routineName}</div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="font-mono text-sm font-bold bg-slate-850 px-2.5 py-1 rounded-lg text-blue-400 border border-blue-500/25">
+            <span className="font-mono text-xs min-[400px]:text-sm font-bold bg-slate-850 px-2 min-[400px]:px-2.5 py-1 rounded-lg text-blue-400 border border-blue-500/25">
               {formatTime(elapsedSeconds)}
             </span>
             <button
               id="btn-expand-workout"
               onClick={() => setIsExpanded(true)}
-              className="p-2 hover:bg-slate-800 rounded-xl transition-all text-slate-300 hover:text-white cursor-pointer shrink-0"
+              className="icon-btn !h-10 !w-10 border-transparent"
               title="Expandir"
+              aria-label="Expandir el entrenamiento"
             >
               <ChevronUp className="h-5 w-5" />
             </button>
@@ -881,9 +979,10 @@ export default function ActiveWorkoutPanel({
                   <button
                     onClick={() => setIsExpanded(false)}
                     title="Minimizar"
-                    className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition-all cursor-pointer shrink-0"
+                    aria-label="Minimizar el entrenamiento"
+                    className="icon-btn !h-10 !w-10 bg-slate-800 border-slate-700"
                   >
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-5 w-5" />
                   </button>
                 </div>
 
@@ -914,27 +1013,14 @@ export default function ActiveWorkoutPanel({
                       Descanso {restTimerEnabled ? 'ON' : 'OFF'}
                     </button>
                     <span className="w-px h-3 bg-current opacity-25 shrink-0" />
-                    <input
-                      type="number"
-                      min={10}
-                      max={600}
-                      value={restSecondsText}
-                      onFocus={(e) => {
-                        setRestSecondsFocused(true);
-                        e.target.select();
-                      }}
-                      onChange={(e) => setRestSecondsText(e.target.value)}
-                      onBlur={() => {
-                        setRestSecondsFocused(false);
-                        handleChangeDefaultRestSeconds(parseInt(restSecondsText) || defaultRestSeconds);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                      }}
-                      title="Segundos de descanso (se aplica a todos los ejercicios de este entrenamiento)"
-                      className="w-8 bg-transparent text-center font-extrabold focus:outline-none"
-                    />
-                    <span>s</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowRestWheel(true)}
+                      title="Descanso (se aplica a todos los ejercicios de este entrenamiento)"
+                      className="min-w-8 bg-transparent text-center font-extrabold cursor-pointer"
+                    >
+                      {defaultRestSeconds === 0 ? 'Sin' : formatRest(defaultRestSeconds)}
+                    </button>
                   </div>
 
                   <button
@@ -958,35 +1044,36 @@ export default function ActiveWorkoutPanel({
                   </div>
                 )}
 
-                {/* Fila 3: acciones principales, siempre visibles a lo ancho completo */}
-                <div className="flex items-center gap-2">
-                  {onUploadPhoto && (
-                    <div
-                      className="relative flex items-center bg-slate-800 border border-slate-700 rounded-xl shrink-0"
-                      title="Fotos del entrenamiento"
-                    >
-                      <PhotoCaptureButtons compact allowVideo onFiles={handleHeaderPhotos} disabled={headerPhotoProgress !== null} />
-                      {photos.length > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-blue-600 text-[9px] font-black text-white flex items-center justify-center">
-                          {photos.length}
-                        </span>
-                      )}
-                      {headerPhotoProgress !== null && (
-                        <span className="absolute inset-x-1 bottom-0.5 h-0.5 bg-slate-700 rounded-full overflow-hidden">
-                          <span className="block h-full bg-blue-500" style={{ width: `${Math.max(5, headerPhotoProgress * 100)}%` }} />
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {onOpenPlateCalculator && (
-                    <button
-                      onClick={onOpenPlateCalculator}
-                      title="Calculadora de discos"
-                      className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center shrink-0 cursor-pointer"
-                    >
-                      ⚙️
-                    </button>
-                  )}
+                {/* Fila 3: herramientas (fotos, discos) y las dos acciones grandes, a todo el ancho */}
+                {(onUploadPhoto || onOpenPlateCalculator) && (
+                  <div className="flex items-center gap-2">
+                    {onUploadPhoto && (
+                      <div
+                        className="relative flex items-center bg-slate-800 border border-slate-700 rounded-xl shrink-0"
+                        title="Fotos del entrenamiento"
+                      >
+                        <PhotoCaptureButtons compact allowVideo onFiles={handleHeaderPhotos} disabled={headerPhotoProgress !== null} />
+                        {photos.length > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-blue-600 text-[9px] font-black text-white flex items-center justify-center">
+                            {photos.length}
+                          </span>
+                        )}
+                        {headerPhotoProgress !== null && (
+                          <span className="absolute inset-x-1 bottom-0.5 h-0.5 bg-slate-700 rounded-full overflow-hidden">
+                            <span className="block h-full bg-blue-500" style={{ width: `${Math.max(5, headerPhotoProgress * 100)}%` }} />
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {onOpenPlateCalculator && (
+                      <button onClick={onOpenPlateCalculator} title="Calculadora de discos" className="btn btn-secondary btn-sm shrink-0">
+                        <Calculator />
+                        Discos
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => {
                       setConfirmConfig({
@@ -1001,9 +1088,9 @@ export default function ActiveWorkoutPanel({
                         },
                       });
                     }}
-                    className="flex-1 justify-center px-4 py-2.5 bg-rose-950/40 hover:bg-rose-900/40 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="btn btn-danger"
                   >
-                    <Square className="h-3.5 w-3.5" />
+                    <Square />
                     Cancelar
                   </button>
                   <button
@@ -1012,9 +1099,9 @@ export default function ActiveWorkoutPanel({
                       onFinishWorkout(elapsedSeconds);
                       setIsExpanded(false);
                     }}
-                    className="flex-1 justify-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-950/20 flex items-center gap-1.5 cursor-pointer"
+                    className="btn btn-success"
                   >
-                    <Check className="h-4 w-4" />
+                    <Check />
                     Finalizar
                   </button>
                 </div>
@@ -1044,7 +1131,7 @@ export default function ActiveWorkoutPanel({
                         >
                         {supersetLetter && (
                           <div className="px-3 py-1 bg-violet-950/40 border-b border-violet-500/30 text-[10px] font-black uppercase tracking-wider text-violet-300">
-                            Superserie {supersetLetter} · sin descanso entre ejercicios del grupo
+                            {groupName(activeWorkout.exercises, index)} {supersetLetter} · sin descanso entre ejercicios del grupo
                           </div>
                         )}
                         {/* Header Section */}
@@ -1058,7 +1145,7 @@ export default function ActiveWorkoutPanel({
                                   loading="lazy"
                                   decoding="async"
                                   referrerPolicy="no-referrer"
-                                  onClick={() => openLightbox(ex.imageUrl, ex.name)}
+                                  onClick={() => openLightbox(ex.imageUrl, ex.name, ex.videoUrl)}
                                   className="w-full h-full object-contain cursor-zoom-in"
                                 />
                               ) : (
@@ -1074,27 +1161,49 @@ export default function ActiveWorkoutPanel({
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 justify-between sm:justify-start shrink-0">
+                          <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
                             {/* Descanso recomendado del ejercicio: informativo, fijo. El
                                 descanso real que se aplica ya se ajusta desde la cabecera
                                 (se aplica a todos los ejercicios de golpe). */}
                             <div
-                              className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-2 py-1 rounded-xl text-[10px] font-bold text-slate-300"
+                              className="flex min-h-[2rem] items-center gap-1 whitespace-nowrap bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-xl text-[10px] font-bold text-slate-300"
                               title="Descanso recomendado para este ejercicio"
                             >
                               <Clock className="h-3 w-3 text-blue-400" />
                               <span>Recomendado: <span className="text-blue-400">{ex.defaultRestTime}s</span></span>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => setHistoryFor(ex)}
+                              title="Ver todas las veces que has hecho este ejercicio"
+                              className="flex min-h-[2rem] items-center gap-1 whitespace-nowrap px-2.5 py-1 rounded-xl text-[10px] font-bold border bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                            >
+                              <History className="h-3 w-3" />
+                              Historial
+                            </button>
+                            {!isHold(ex) && (
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePerSide(we.id)}
+                                aria-pressed={!!we.perSide}
+                                title="Contar las repeticiones por lado (zancadas, trabajo a una mano...)"
+                                className={`flex min-h-[2rem] items-center gap-1 whitespace-nowrap px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-colors cursor-pointer ${
+                                  we.perSide ? 'bg-teal-950/40 border-teal-500/40 text-teal-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                Por lado
+                              </button>
+                            )}
                             {nextExercise && (
                               <button
                                 type="button"
                                 onClick={() => handleToggleSuperset(index)}
-                                className={`flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] font-bold border transition-colors cursor-pointer ${
+                                className={`flex min-h-[2rem] items-center gap-1 whitespace-nowrap px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-colors cursor-pointer ${
                                   linkedWithNext
                                     ? 'bg-violet-950/40 border-violet-500/40 text-violet-300 hover:bg-violet-900/40'
                                     : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                                 }`}
-                                title={linkedWithNext ? 'Separar del siguiente ejercicio' : 'Hacer superserie con el siguiente ejercicio'}
+                                title={linkedWithNext ? 'Separar del siguiente ejercicio' : 'Enlazar con el siguiente ejercicio (superserie; con tres o más, circuito)'}
                               >
                                 {linkedWithNext ? <Link2Off className="h-3 w-3" /> : <Link2 className="h-3 w-3" />}
                                 {linkedWithNext ? 'Separar' : 'Superserie'}
@@ -1102,13 +1211,38 @@ export default function ActiveWorkoutPanel({
                             )}
                             <button
                               onClick={() => handleRemoveExerciseFromWorkout(we.id)}
-                              className="text-slate-500 hover:text-rose-400 p-1.5 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                              className="icon-btn !h-9 !w-9 ml-auto border-transparent text-slate-500 hover:text-rose-400"
                               title="Remover Ejercicio"
+                              aria-label={`Quitar ${ex.name} del entrenamiento`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
+
+                        {/* ¿Máquina ocupada? Alternativas de la rutina, a un toque */}
+                        {(() => {
+                          const alts = (we.alternativeIds ?? []).map((id) => exercises.find((e) => e.id === id)).filter((e): e is Exercise => !!e);
+                          if (alts.length === 0 || we.sets.some((s) => s.completed)) return null;
+                          return (
+                            <div className="px-4 py-2.5 bg-violet-950/20 border-b border-violet-500/20 flex flex-wrap items-center gap-2 text-xs">
+                              <span className="font-bold text-violet-300 flex items-center gap-1.5">
+                                <Repeat className="h-3.5 w-3.5" />
+                                ¿Ocupado? Cambiar por:
+                              </span>
+                              {alts.map((alt) => (
+                                <button
+                                  key={alt.id}
+                                  type="button"
+                                  onClick={() => handleSwapExercise(we.id, alt.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-violet-500/30 hover:border-violet-400 text-slate-100 font-bold cursor-pointer"
+                                >
+                                  {alt.name}
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
 
                         {/* Sets List */}
                         <div className="p-4 space-y-3 bg-slate-900">
@@ -1120,16 +1254,20 @@ export default function ActiveWorkoutPanel({
                             style={{ gridTemplateColumns: SET_ROW_COLUMNS }}
                           >
                             <span className="text-left whitespace-nowrap">Serie</span>
-                            <span className="whitespace-nowrap">Peso</span>
-                            <span className="whitespace-nowrap">Reps</span>
+                            <span className="whitespace-nowrap">{isCardio(ex) ? 'Km' : 'Peso'}</span>
+                            <span className="whitespace-nowrap">{repsColumnLabel(ex, false, !!we.perSide)}</span>
                             <span className="whitespace-nowrap">RPE</span>
                             <span className="flex justify-center"><Check className="h-4 w-4 stroke-[3px]" /></span>
                             <span></span>
                           </div>
 
                           {we.sets.map((set, setIndex) => (
-                            <div
+                            <SwipeRow
                               key={set.id}
+                              onSwipeLeft={we.sets.length > 1 ? () => handleRemoveSet(we.id, set.id) : undefined}
+                              onSwipeRight={() => handleDuplicateSet(we.id, set.id)}
+                              leftLabel="Borrar"
+                              rightLabel="Copiar"
                               className={`relative grid gap-1.5 items-center text-center py-1.5 rounded-xl transition-all ${
                                 set.completed ? 'bg-emerald-950/20 border-t border-b border-emerald-900/40' : 'hover:bg-slate-850/50'
                               }`}
@@ -1159,6 +1297,23 @@ export default function ActiveWorkoutPanel({
                                   automático al enfocar el campo, lo que descoloca
                                   toda la pantalla en móvil. */}
                               <div className="min-w-0">
+                                {isCardio(ex) ? (
+                                  <>
+                                    <DecimalInput
+                                      value={set.distance ?? 0}
+                                      placeholder="0"
+                                      onChange={(v) => handleUpdateWeightRep(we.id, set.id, 'distance', v)}
+                                      className={`w-full text-center px-1.5 py-2 border rounded-lg text-base font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                        set.completed ? 'bg-slate-950 border-emerald-900 text-emerald-400' : 'bg-slate-950 border-slate-800 text-slate-200'
+                                      }`}
+                                    />
+                                    {speedKmh(set.distance, set.reps) !== null && (
+                                      <div className="mt-0.5 text-[10px] leading-tight text-slate-500 whitespace-nowrap">
+                                        {speedKmh(set.distance, set.reps)} km/h · {paceMinKm(set.distance, set.reps)}/km
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
                                 <DecimalInput
                                   value={set.weight}
                                   placeholder="0"
@@ -1167,10 +1322,36 @@ export default function ActiveWorkoutPanel({
                                     set.completed ? 'bg-slate-950 border-emerald-900 text-emerald-400' : 'bg-slate-950 border-slate-800 text-slate-200'
                                   }`}
                                 />
+                                )}
+                                {/* Máquina con pila de pesas: un toque = un escalón real de la máquina */}
+                                {userData['weight-stacks'][we.exerciseId] && !set.completed && (
+                                  <div className="mt-1 grid grid-cols-2 gap-1">
+                                    {([-1, 1] as const).map((dir) => (
+                                      <button
+                                        key={dir}
+                                        type="button"
+                                        aria-label={dir === 1 ? 'Subir un peso de la pila' : 'Bajar un peso de la pila'}
+                                        onClick={() => handleUpdateWeightRep(we.id, set.id, 'weight', stepOnStack(set.weight, userData['weight-stacks'][we.exerciseId], dir))}
+                                        className="h-6 rounded-md bg-slate-950 border border-amber-500/30 text-amber-300 text-xs font-black hover:bg-amber-950/40 cursor-pointer"
+                                      >
+                                        {dir === 1 ? '+' : '−'}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
 
                               {/* Reps Input */}
                               <div className="min-w-0">
+                                {isCardio(ex) ? (
+                                  <DurationInput
+                                    value={set.reps}
+                                    onChange={(sec) => handleUpdateWeightRep(we.id, set.id, 'reps', sec)}
+                                    className={`w-full text-center px-1.5 py-2 border rounded-lg text-base font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                      set.completed ? 'bg-slate-950 border-emerald-900 text-emerald-400' : 'bg-slate-950 border-slate-800 text-slate-200'
+                                    }`}
+                                  />
+                                ) : (
                                 <input
                                   type="number"
                                   min={1}
@@ -1182,6 +1363,7 @@ export default function ActiveWorkoutPanel({
                                     set.completed ? 'bg-slate-950 border-emerald-900 text-emerald-400' : 'bg-slate-950 border-slate-800 text-slate-200'
                                   }`}
                                 />
+                                )}
                               </div>
 
                               {/* RPE (el selector se ancla a la fila, no a esta celda estrecha) */}
@@ -1262,7 +1444,7 @@ export default function ActiveWorkoutPanel({
                                   <X className="h-4 w-4" />
                                 </button>
                               </div>
-                            </div>
+                            </SwipeRow>
                           ))}
 
                           <button
@@ -1388,6 +1570,30 @@ export default function ActiveWorkoutPanel({
           </div>
         )}
       </AnimatePresence>
+
+      {historyFor && <ExerciseHistoryModal exercise={historyFor} logs={logs} onClose={() => setHistoryFor(null)} />}
+
+      {undoSet && (
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-[120] flex items-center gap-4 pl-4 pr-2 py-2 rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl text-sm text-slate-100">
+          Serie eliminada
+          <button type="button" onClick={handleUndoRemoveSet} className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer">
+            Deshacer
+          </button>
+        </div>
+      )}
+
+      {showRestWheel && (
+        <RestTimePicker
+          title="Descanso de este entrenamiento"
+          value={defaultRestSeconds}
+          fallback={defaultRestSeconds}
+          onSelect={(sec) => {
+            handleChangeDefaultRestSeconds(sec);
+            setShowRestWheel(false);
+          }}
+          onClose={() => setShowRestWheel(false)}
+        />
+      )}
 
       <ConfirmDialog
         isOpen={confirmConfig.isOpen}

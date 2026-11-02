@@ -21,6 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $e['isCustom'] = (bool) $e['isCustom'];
         $e['defaultRestTime'] = (int) $e['defaultRestTime'];
         unset($e['user_id']);
+        // zone/category son opcionales: si están vacíos no se envían.
+        if (($e['zone'] ?? null) === null) unset($e['zone']);
+        if (($e['category'] ?? null) === null) unset($e['category']);
     }
 
     sendJson($exercises);
@@ -44,8 +47,8 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ON CONFLICT DO UPDATE en vez de INSERT OR REPLACE: preserva created_at
     // en vez de reiniciarlo cada vez que se resube el mismo ejercicio.
     $stmt = $pdo->prepare("
-        INSERT INTO exercises (id, user_id, name, muscleGroup, equipment, imageUrl, defaultRestTime, instructions, isCustom)
-        VALUES (:id, :user_id, :name, :muscleGroup, :equipment, :imageUrl, :defaultRestTime, :instructions, :isCustom)
+        INSERT INTO exercises (id, user_id, name, muscleGroup, equipment, imageUrl, defaultRestTime, instructions, isCustom, zone, category)
+        VALUES (:id, :user_id, :name, :muscleGroup, :equipment, :imageUrl, :defaultRestTime, :instructions, :isCustom, :zone, :category)
         ON CONFLICT(id, user_id) DO UPDATE SET
             name = excluded.name,
             muscleGroup = excluded.muscleGroup,
@@ -53,7 +56,9 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             imageUrl = excluded.imageUrl,
             defaultRestTime = excluded.defaultRestTime,
             instructions = excluded.instructions,
-            isCustom = excluded.isCustom
+            isCustom = excluded.isCustom,
+            zone = excluded.zone,
+            category = excluded.category
     ");
 
     $saved = 0;
@@ -78,7 +83,9 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':imageUrl' => $ex['imageUrl'] ?? '',
             ':defaultRestTime' => $ex['defaultRestTime'] ?? 60,
             ':instructions' => json_encode($ex['instructions'] ?? []),
-            ':isCustom' => $isCustom ? 1 : 0
+            ':isCustom' => $isCustom ? 1 : 0,
+            ':zone' => $ex['zone'] ?? null,
+            ':category' => $ex['category'] ?? null
         ]);
         $saved++;
     }

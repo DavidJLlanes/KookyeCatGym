@@ -21,7 +21,8 @@ export function getLastPerformanceSets(
     // El ejercicio puede estar repartido en varios bloques del mismo log
     // (repetido o añadido a media sesión); se juntan todos para no perder
     // series.
-    const matches = log.exercises.filter((le) => le.exerciseId === exerciseId);
+    // (las semanas de descarga no cuentan: tras ellas se retoma la carga de antes)
+    const matches = log.exercises.filter((le) => le.exerciseId === exerciseId && !le.deload);
     if (matches.length === 0) continue;
     const completed = matches.flatMap((m) => m.sets.filter((s) => s.completed));
     if (completed.length > 0) return completed;

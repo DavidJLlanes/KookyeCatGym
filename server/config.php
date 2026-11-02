@@ -157,6 +157,13 @@ try {
             PRIMARY KEY (id, user_id)
         )
     ");
+    // Zona muscular y tipo de ejercicio (los ejercicios personalizados los
+    // guardan para que el mapa muscular y los filtros funcionen con ellos).
+    foreach (['zone', 'category'] as $extraCol) {
+        if (!columnExists($pdo, 'exercises', $extraCol)) {
+            $pdo->exec("ALTER TABLE exercises ADD COLUMN $extraCol TEXT");
+        }
+    }
     if ($legacyExercises) {
         $stmt = $pdo->prepare("
             INSERT OR IGNORE INTO exercises (id, user_id, name, muscleGroup, equipment, imageUrl, defaultRestTime, instructions, isCustom, created_at)

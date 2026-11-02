@@ -22,7 +22,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-arnold-pecho-espalda-0',
-        exerciseId: 'EIeI8Vf',
+        exerciseId: '0025',
         restTime: 120,
         sets: [
           { id: 's-arnold-pecho-espalda-0-0', weight: 70, reps: 10, completed: false },
@@ -33,7 +33,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-arnold-pecho-espalda-1',
-        exerciseId: '3TZduzM',
+        exerciseId: '0047',
         restTime: 120,
         sets: [
           { id: 's-arnold-pecho-espalda-1-0', weight: 60, reps: 10, completed: false },
@@ -54,7 +54,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-arnold-pecho-espalda-3',
-        exerciseId: '0V2YQjW',
+        exerciseId: '0651',
         restTime: 120,
         sets: [
           { id: 's-arnold-pecho-espalda-3-0', weight: 0, reps: 10, completed: false },
@@ -76,7 +76,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-arnold-pecho-espalda-5',
-        exerciseId: 'ila4NZS',
+        exerciseId: '0032',
         restTime: 150,
         sets: [
           { id: 's-arnold-pecho-espalda-5-0', weight: 100, reps: 8, completed: false },
@@ -105,7 +105,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-arnold-hombros-brazos-0',
-        exerciseId: 'Kyd9Rz5',
+        exerciseId: '1457',
         restTime: 120,
         sets: [
           { id: 's-arnold-hombros-brazos-0-0', weight: 45, reps: 10, completed: false },
@@ -127,7 +127,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-arnold-hombros-brazos-2',
-        exerciseId: 'FS63wTN',
+        exerciseId: '1700',
         restTime: 90,
         sets: [
           { id: 's-arnold-hombros-brazos-2-0', weight: 15, reps: 10, completed: false },
@@ -158,7 +158,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-arnold-hombros-brazos-5',
-        exerciseId: 'EcaV7aL',
+        exerciseId: '0055',
         restTime: 90,
         sets: [
           { id: 's-arnold-hombros-brazos-5-0', weight: 60, reps: 10, completed: false },
@@ -199,7 +199,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-arnold-piernas-0',
-        exerciseId: 'Gnfo4FM',
+        exerciseId: '1436',
         restTime: 150,
         sets: [
           { id: 's-arnold-piernas-0-0', weight: 90, reps: 10, completed: false },
@@ -220,7 +220,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-arnold-piernas-2',
-        exerciseId: '17lJ1kr',
+        exerciseId: '0586',
         restTime: 75,
         sets: [
           { id: 's-arnold-piernas-2-0', weight: 35, reps: 10, completed: false },
@@ -242,7 +242,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-arnold-piernas-4',
-        exerciseId: 'wQ2c4XD',
+        exerciseId: '0085',
         restTime: 90,
         sets: [
           { id: 's-arnold-piernas-4-0', weight: 80, reps: 10, completed: false },
@@ -252,7 +252,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-arnold-piernas-5',
-        exerciseId: 'XlZ4lAC',
+        exerciseId: '0044',
         restTime: 90,
         sets: [
           { id: 's-arnold-piernas-5-0', weight: 40, reps: 10, completed: false },
@@ -281,7 +281,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-ronnie-espalda-a-0',
-        exerciseId: 'ila4NZS',
+        exerciseId: '0032',
         restTime: 150,
         sets: [
           { id: 's-ronnie-espalda-a-0-0', weight: 140, reps: 8, completed: false },
@@ -302,7 +302,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-espalda-a-2',
-        exerciseId: 'ZIViNh1',
+        exerciseId: '1330',
         restTime: 90,
         sets: [
           { id: 's-ronnie-espalda-a-2-0', weight: 40, reps: 10, completed: false },
@@ -323,7 +323,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-espalda-a-4',
-        exerciseId: 'Kyd9Rz5',
+        exerciseId: '1457',
         restTime: 120,
         sets: [
           { id: 's-ronnie-espalda-a-4-0', weight: 65, reps: 10, completed: false },
@@ -343,7 +343,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-ronnie-piernas-a-0',
-        exerciseId: 'Gnfo4FM',
+        exerciseId: '1436',
         restTime: 180,
         sets: [
           { id: 's-ronnie-piernas-a-0-0', weight: 170, reps: 6, completed: false },
@@ -375,7 +375,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-piernas-a-3',
-        exerciseId: 'wQ2c4XD',
+        exerciseId: '0085',
         restTime: 100,
         sets: [
           { id: 's-ronnie-piernas-a-3-0', weight: 110, reps: 12, completed: false },
@@ -385,7 +385,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-piernas-a-4',
-        exerciseId: '17lJ1kr',
+        exerciseId: '0586',
         restTime: 75,
         sets: [
           { id: 's-ronnie-piernas-a-4-0', weight: 40, reps: 12, completed: false },
@@ -404,7 +404,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-ronnie-pecho-a-0',
-        exerciseId: 'EIeI8Vf',
+        exerciseId: '0025',
         restTime: 150,
         sets: [
           { id: 's-ronnie-pecho-a-0-0', weight: 150, reps: 12, completed: false },
@@ -416,7 +416,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-pecho-a-1',
-        exerciseId: '3TZduzM',
+        exerciseId: '0047',
         restTime: 120,
         sets: [
           { id: 's-ronnie-pecho-a-1-0', weight: 95, reps: 12, completed: false },
@@ -447,7 +447,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-pecho-a-4',
-        exerciseId: 'EcaV7aL',
+        exerciseId: '0055',
         restTime: 90,
         sets: [
           { id: 's-ronnie-pecho-a-4-0', weight: 90, reps: 12, completed: false },
@@ -479,7 +479,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-espalda-b-1',
-        exerciseId: 'SJqRxOt',
+        exerciseId: '1323',
         restTime: 90,
         sets: [
           { id: 's-ronnie-espalda-b-1-0', weight: 55, reps: 12, completed: false },
@@ -531,7 +531,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-ronnie-piernas-b-0',
-        exerciseId: 'my33uHU',
+        exerciseId: '0585',
         restTime: 75,
         sets: [
           { id: 's-ronnie-piernas-b-0-0', weight: 40, reps: 30, completed: false },
@@ -553,7 +553,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-piernas-b-2',
-        exerciseId: '5VCj6iH',
+        exerciseId: '0046',
         restTime: 90,
         sets: [
           { id: 's-ronnie-piernas-b-2-0', weight: 80, reps: 12, completed: false },
@@ -563,7 +563,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-piernas-b-3',
-        exerciseId: '17lJ1kr',
+        exerciseId: '0586',
         restTime: 75,
         sets: [
           { id: 's-ronnie-piernas-b-3-0', weight: 45, reps: 12, completed: false },
@@ -583,7 +583,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-ronnie-pecho-b-0',
-        exerciseId: 'ns0SIbU',
+        exerciseId: '0314',
         restTime: 90,
         sets: [
           { id: 's-ronnie-pecho-b-0-0', weight: 26, reps: 12, completed: false },
@@ -594,7 +594,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-pecho-b-1',
-        exerciseId: 'GrO65fd',
+        exerciseId: '0033',
         restTime: 100,
         sets: [
           { id: 's-ronnie-pecho-b-1-0', weight: 100, reps: 12, completed: false },
@@ -636,7 +636,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-ronnie-pecho-b-5',
-        exerciseId: 'ipvgBnC',
+        exerciseId: '1371',
         restTime: 60,
         sets: [
           { id: 's-ronnie-pecho-b-5-0', weight: 40, reps: 12, completed: false },
@@ -656,7 +656,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-dorian-hombros-triceps-0',
-        exerciseId: 'Kyd9Rz5',
+        exerciseId: '1457',
         restTime: 150,
         sets: [
           { id: 's-dorian-hombros-triceps-0-0', weight: 60, reps: 9, completed: false },
@@ -674,7 +674,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-dorian-hombros-triceps-2',
-        exerciseId: 'dG7tG5y',
+        exerciseId: '0095',
         restTime: 90,
         sets: [
           { id: 's-dorian-hombros-triceps-2-0', weight: 90, reps: 11, completed: false },
@@ -737,7 +737,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-dorian-espalda-3',
-        exerciseId: 'zhMwOwE',
+        exerciseId: '0489',
         restTime: 60,
         sets: [
           { id: 's-dorian-espalda-3-0', weight: 0, reps: 11, completed: false },
@@ -746,7 +746,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-dorian-espalda-4',
-        exerciseId: 'ila4NZS',
+        exerciseId: '0032',
         restTime: 180,
         sets: [
           { id: 's-dorian-espalda-4-0', weight: 130, reps: 8, completed: false },
@@ -764,7 +764,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-dorian-pecho-biceps-0',
-        exerciseId: '3TZduzM',
+        exerciseId: '0047',
         restTime: 150,
         sets: [
           { id: 's-dorian-pecho-biceps-0-0', weight: 100, reps: 8, completed: false },
@@ -773,7 +773,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-dorian-pecho-biceps-1',
-        exerciseId: 'ns0SIbU',
+        exerciseId: '0314',
         restTime: 100,
         sets: [
           { id: 's-dorian-pecho-biceps-1-0', weight: 28, reps: 7, completed: false },
@@ -827,7 +827,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-dorian-piernas-0',
-        exerciseId: 'my33uHU',
+        exerciseId: '0585',
         restTime: 90,
         sets: [
           { id: 's-dorian-piernas-0-0', weight: 45, reps: 11, completed: false },
@@ -845,7 +845,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-dorian-piernas-2',
-        exerciseId: '5VCj6iH',
+        exerciseId: '0046',
         restTime: 150,
         sets: [
           { id: 's-dorian-piernas-2-0', weight: 70, reps: 9, completed: false },
@@ -854,7 +854,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-dorian-piernas-3',
-        exerciseId: '17lJ1kr',
+        exerciseId: '0586',
         restTime: 90,
         sets: [
           { id: 's-dorian-piernas-3-0', weight: 40, reps: 9, completed: false },
@@ -863,7 +863,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-dorian-piernas-4',
-        exerciseId: 'wQ2c4XD',
+        exerciseId: '0085',
         restTime: 120,
         sets: [
           { id: 's-dorian-piernas-4-0', weight: 90, reps: 10, completed: false },
@@ -890,7 +890,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-zane-espalda-biceps-0',
-        exerciseId: 'ila4NZS',
+        exerciseId: '0032',
         restTime: 90,
         sets: [
           { id: 's-zane-espalda-biceps-0-0', weight: 70, reps: 12, completed: false },
@@ -901,7 +901,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-zane-espalda-biceps-1',
-        exerciseId: 'R5swFnc',
+        exerciseId: '0248',
         restTime: 90,
         sets: [
           { id: 's-zane-espalda-biceps-1-0', weight: 50, reps: 10, completed: false },
@@ -941,7 +941,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-zane-espalda-biceps-5',
-        exerciseId: '82LxxkW',
+        exerciseId: '0126',
         restTime: 45,
         sets: [
           { id: 's-zane-espalda-biceps-5-0', weight: 15, reps: 15, completed: false },
@@ -959,7 +959,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-zane-piernas-abdomen-0',
-        exerciseId: 'Gnfo4FM',
+        exerciseId: '1436',
         restTime: 90,
         sets: [
           { id: 's-zane-piernas-abdomen-0-0', weight: 60, reps: 12, completed: false },
@@ -970,7 +970,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-zane-piernas-abdomen-1',
-        exerciseId: 'my33uHU',
+        exerciseId: '0585',
         restTime: 75,
         sets: [
           { id: 's-zane-piernas-abdomen-1-0', weight: 30, reps: 10, completed: false },
@@ -1029,7 +1029,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-zane-pecho-hombros-0',
-        exerciseId: 'EIeI8Vf',
+        exerciseId: '0025',
         restTime: 90,
         sets: [
           { id: 's-zane-pecho-hombros-0-0', weight: 60, reps: 10, completed: false },
@@ -1040,7 +1040,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-zane-pecho-hombros-1',
-        exerciseId: 'ns0SIbU',
+        exerciseId: '0314',
         restTime: 75,
         sets: [
           { id: 's-zane-pecho-hombros-1-0', weight: 22, reps: 10, completed: false },
@@ -1070,7 +1070,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-zane-pecho-hombros-4',
-        exerciseId: 'EcaV7aL',
+        exerciseId: '0055',
         restTime: 75,
         sets: [
           { id: 's-zane-pecho-hombros-4-0', weight: 55, reps: 10, completed: false },
@@ -1090,7 +1090,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-zane-pecho-hombros-6',
-        exerciseId: 'KwFGiEP',
+        exerciseId: '0345',
         restTime: 60,
         sets: [
           { id: 's-zane-pecho-hombros-6-0', weight: 8, reps: 12, completed: false },
@@ -1119,7 +1119,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-cbum-piernas-cuadriceps-0',
-        exerciseId: 'my33uHU',
+        exerciseId: '0585',
         restTime: 75,
         sets: [
           { id: 's-cbum-piernas-cuadriceps-0-0', weight: 45, reps: 20, completed: false },
@@ -1128,7 +1128,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-cbum-piernas-cuadriceps-1',
-        exerciseId: 'jFtipLl',
+        exerciseId: '0770',
         restTime: 120,
         sets: [
           { id: 's-cbum-piernas-cuadriceps-1-0', weight: 100, reps: 8, completed: false },
@@ -1137,7 +1137,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-cbum-piernas-cuadriceps-2',
-        exerciseId: 'WWD6FzI',
+        exerciseId: '1425',
         restTime: 90,
         sets: [
           { id: 's-cbum-piernas-cuadriceps-2-0', weight: 80, reps: 9, completed: false },
@@ -1147,7 +1147,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-cbum-piernas-cuadriceps-3',
-        exerciseId: 'ipvgBnC',
+        exerciseId: '1371',
         restTime: 60,
         sets: [
           { id: 's-cbum-piernas-cuadriceps-3-0', weight: 40, reps: 11, completed: false },
@@ -1166,7 +1166,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-cbum-pecho-triceps-0',
-        exerciseId: 'ns0SIbU',
+        exerciseId: '0314',
         restTime: 90,
         sets: [
           { id: 's-cbum-pecho-triceps-0-0', weight: 30, reps: 9, completed: false },
@@ -1175,7 +1175,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-cbum-pecho-triceps-1',
-        exerciseId: 'HYe1ZqR',
+        exerciseId: '1278',
         restTime: 75,
         sets: [
           { id: 's-cbum-pecho-triceps-1-0', weight: 12, reps: 9, completed: false },
@@ -1222,7 +1222,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-cbum-espalda-biceps-1',
-        exerciseId: '7vG5o25',
+        exerciseId: '0327',
         restTime: 90,
         sets: [
           { id: 's-cbum-espalda-biceps-1-0', weight: 24, reps: 9, completed: false },
@@ -1231,7 +1231,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-cbum-espalda-biceps-2',
-        exerciseId: 'R5swFnc',
+        exerciseId: '0248',
         restTime: 90,
         sets: [
           { id: 's-cbum-espalda-biceps-2-0', weight: 45, reps: 9, completed: false },
@@ -1240,7 +1240,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-cbum-espalda-biceps-3',
-        exerciseId: 'b6hQYMb',
+        exerciseId: '0592',
         restTime: 60,
         sets: [
           { id: 's-cbum-espalda-biceps-3-0', weight: 20, reps: 11, completed: false },
@@ -1276,7 +1276,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-cbum-hombros-pecho-2',
-        exerciseId: 'P5p0j8B',
+        exerciseId: '0225',
         restTime: 60,
         sets: [
           { id: 's-cbum-hombros-pecho-2-0', weight: 12, reps: 11, completed: false },
@@ -1294,7 +1294,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
     exercises: [
       {
         id: 'we-cbum-isquios-espalda-0',
-        exerciseId: '17lJ1kr',
+        exerciseId: '0586',
         restTime: 90,
         sets: [
           { id: 's-cbum-isquios-espalda-0-0', weight: 35, reps: 9, completed: false },
@@ -1303,7 +1303,7 @@ export const DEFAULT_ROUTINES: Routine[] = [
       },
       {
         id: 'we-cbum-isquios-espalda-1',
-        exerciseId: 'ila4NZS',
+        exerciseId: '0032',
         restTime: 150,
         sets: [
           { id: 's-cbum-isquios-espalda-1-0', weight: 110, reps: 6, completed: false },
@@ -1383,7 +1383,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'EIeI8Vf',
+        exerciseId: '0025',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 60, reps: 8, completed: true },
@@ -1393,7 +1393,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'Kyd9Rz5',
+        exerciseId: '1457',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 38, reps: 8, completed: true },
@@ -1403,7 +1403,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'ns0SIbU',
+        exerciseId: '0314',
         restTime: 90,
         sets: [
           { id: uuid(), weight: 20, reps: 10, completed: true },
@@ -1431,7 +1431,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'ila4NZS',
+        exerciseId: '0032',
         restTime: 150,
         sets: [
           { id: uuid(), weight: 100, reps: 5, completed: true },
@@ -1441,7 +1441,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: '0V2YQjW',
+        exerciseId: '0651',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 0, reps: 8, completed: true },
@@ -1480,7 +1480,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'Gnfo4FM',
+        exerciseId: '1436',
         restTime: 150,
         sets: [
           { id: uuid(), weight: 80, reps: 8, completed: true },
@@ -1490,7 +1490,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'wQ2c4XD',
+        exerciseId: '0085',
         restTime: 90,
         sets: [
           { id: uuid(), weight: 70, reps: 10, completed: true },
@@ -1520,7 +1520,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'EIeI8Vf',
+        exerciseId: '0025',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 64, reps: 8, completed: true },
@@ -1530,7 +1530,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'Kyd9Rz5',
+        exerciseId: '1457',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 40, reps: 8, completed: true },
@@ -1540,7 +1540,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'ns0SIbU',
+        exerciseId: '0314',
         restTime: 90,
         sets: [
           { id: uuid(), weight: 22, reps: 10, completed: true },
@@ -1569,7 +1569,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'ila4NZS',
+        exerciseId: '0032',
         restTime: 150,
         sets: [
           { id: uuid(), weight: 105, reps: 5, completed: true },
@@ -1579,7 +1579,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: '0V2YQjW',
+        exerciseId: '0651',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 0, reps: 9, completed: true },
@@ -1618,7 +1618,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'Gnfo4FM',
+        exerciseId: '1436',
         restTime: 150,
         sets: [
           { id: uuid(), weight: 84, reps: 8, completed: true },
@@ -1628,7 +1628,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'wQ2c4XD',
+        exerciseId: '0085',
         restTime: 90,
         sets: [
           { id: uuid(), weight: 74, reps: 10, completed: true },
@@ -1659,7 +1659,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'EIeI8Vf',
+        exerciseId: '0025',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 68, reps: 8, completed: true },
@@ -1669,7 +1669,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'Kyd9Rz5',
+        exerciseId: '1457',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 42, reps: 8, completed: true },
@@ -1679,7 +1679,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'ns0SIbU',
+        exerciseId: '0314',
         restTime: 90,
         sets: [
           { id: uuid(), weight: 24, reps: 10, completed: true },
@@ -1708,7 +1708,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'ila4NZS',
+        exerciseId: '0032',
         restTime: 150,
         sets: [
           { id: uuid(), weight: 110, reps: 5, completed: true },
@@ -1718,7 +1718,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: '0V2YQjW',
+        exerciseId: '0651',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 0, reps: 10, completed: true },
@@ -1757,7 +1757,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'Gnfo4FM',
+        exerciseId: '1436',
         restTime: 150,
         sets: [
           { id: uuid(), weight: 88, reps: 8, completed: true },
@@ -1767,7 +1767,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'wQ2c4XD',
+        exerciseId: '0085',
         restTime: 90,
         sets: [
           { id: uuid(), weight: 76, reps: 10, completed: true },
@@ -1798,7 +1798,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'EIeI8Vf',
+        exerciseId: '0025',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 70, reps: 8, completed: true },
@@ -1808,7 +1808,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'Kyd9Rz5',
+        exerciseId: '1457',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 45, reps: 8, completed: true },
@@ -1818,7 +1818,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'ns0SIbU',
+        exerciseId: '0314',
         restTime: 90,
         sets: [
           { id: uuid(), weight: 24, reps: 10, completed: true },
@@ -1847,7 +1847,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'ila4NZS',
+        exerciseId: '0032',
         restTime: 150,
         sets: [
           { id: uuid(), weight: 110, reps: 5, completed: true },
@@ -1857,7 +1857,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: '0V2YQjW',
+        exerciseId: '0651',
         restTime: 120,
         sets: [
           { id: uuid(), weight: 0, reps: 10, completed: true },
@@ -1896,7 +1896,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
     exercises: [
       {
         id: uuid(),
-        exerciseId: 'Gnfo4FM',
+        exerciseId: '1436',
         restTime: 150,
         sets: [
           { id: uuid(), weight: 90, reps: 8, completed: true },
@@ -1906,7 +1906,7 @@ export const DEFAULT_LOGS: WorkoutLog[] = [
       },
       {
         id: uuid(),
-        exerciseId: 'wQ2c4XD',
+        exerciseId: '0085',
         restTime: 90,
         sets: [
           { id: uuid(), weight: 80, reps: 10, completed: true },

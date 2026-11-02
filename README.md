@@ -37,20 +37,27 @@
 
 | | |
 | --- | --- |
-| 🏋️ **Rutinas a tu medida** | Organiza tus ejercicios y prepara cada sesión. |
-| 📝 **Registro de entrenamientos** | Guarda series, repeticiones y pesos. |
-| 📈 **Progreso visible** | Consulta estadísticas y tu 1RM estimado. |
-| 📅 **Constancia** | Revisa tu actividad en el calendario de entrenamientos. |
+| 🏋️ **Rutinas a tu medida** | Más de 5.600 ejercicios con vídeo, rutinas en carpetas, superseries y circuitos, pirámides, descansos por serie, ejercicios de repuesto y planes de iniciación (PPL, torso/pierna, cuerpo completo, 5×5). |
+| 🔁 **Rotación y plan semanal** | Rotación de sesiones (A, B, C…) o días fijos; mueve una sesión de día solo esa semana y planifica semanas de descarga. |
+| 📝 **Registro de entrenamientos** | Series, repeticiones, peso, RPE, cardio por tiempo y distancia, reps por lado, deslizar para borrar o copiar series, y editar o registrar entrenamientos pasados. |
+| ⚖️ **Progresión** | Lineal, doble, Greyskull y triple (repeticiones → series → carga), con pila de pesas real de cada máquina. |
+| 📈 **Progreso visible** | 1RM estimado, historial de cada ejercicio, mapa muscular (volumen, recuperación, sin entrenar), peso corporal frente a un objetivo y fuerza relativa. |
+| 📅 **Constancia** | Calendario y mapa de actividad. |
+| 🤖 **IA para tus consejos** | Coach IA integrado (con tu clave de API), resumen para pegar en cualquier IA y un [servidor MCP](mcp/README.md) de solo lectura. |
+| 📤 **Tus datos, tuyos** | Exporta a CSV o JSON, importa desde Hevy, Strong o FitNotes, y comparte planes como archivo o PDF. |
+| 🔠 **Accesible** | Tamaño de letra ajustable y diseño probado de 320 a 430 px de ancho. |
 | 🖼️ **Tarjetas para compartir** | Genera tarjetas de tus entrenamientos y resultados para redes. |
 | 🏠 **Tu propio servidor** | Aloja la app con React, PHP y SQLite, con soporte multiusuario. |
 
-> Este repositorio contiene **solo el código**. Las animaciones de ejercicios
-> y las imágenes anatómicas **no se incluyen** (ver [Imágenes](#imágenes)).
+> El repositorio incluye el catálogo de ejercicios con sus vídeos e imágenes
+> (`public/exercises/`, unos 190 MB). Las imágenes anatómicas y los iconos de
+> marca se añaden aparte (ver [Imágenes](#imágenes)).
 
 ## Requisitos
 
 - Node.js 18+ y npm
 - PHP 8+ con la extensión PDO SQLite (para el backend)
+- Node.js 22.5+ solo si vas a usar el servidor [MCP](mcp/README.md)
 
 ## Frontend
 
@@ -92,15 +99,17 @@ Vite):
 
 ## Imágenes
 
-Para reducir el peso del repositorio y por motivos de licencia, **no se
-incluyen** los medios. La app espera encontrarlos en `public/`:
+Los medios del catálogo **sí están incluidos**: el catálogo (`src/data/catalog.json`)
+apunta a estos nombres, donde `<id>` es el número del ejercicio (p. ej. `0025`):
 
-- `public/exercises/<id>.gif` — animación de cada ejercicio
-- `public/exercises/<id>-poster.jpg` — fotograma estático (miniatura)
-- `public/muscle-anatomy/<zona>.webp` — imágenes anatómicas por zona muscular
+- `public/exercises/clip/<id>.mp4` — vídeo corto de cada ejercicio
+- `public/exercises/still/<id>.webp` — fotograma estático (miniatura)
+
+Lo siguiente **no** se incluye y se añade aparte en `public/`:
+
+- `public/muscle-anatomy/<zona>.webp` — imágenes anatómicas por zona muscular (18 archivos)
 - `public/user-photo.webp` — foto opcional del usuario para las tarjetas
   (si falta, la tarjeta se genera sin foto)
-- `public/icon-192.png`, `public/icon-512.png`, favicons — icono/logo de marca
 
 Las animaciones e imágenes de ejercicios pertenecen a sus creadores originales
 (p. ej. ExerciseDB / GymVisual) y se rigen por sus propias licencias.

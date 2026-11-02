@@ -1,3 +1,4 @@
+import ScrollRow from './ScrollRow';
 import React, { useEffect, useState } from 'react';
 import { UserPlus, Users, Dumbbell, Image as ImageIcon, Bell, Sparkles, Activity } from 'lucide-react';
 import * as api from '../api/client';
@@ -77,7 +78,7 @@ export function AdminStatsSection() {
         ))}
       </div>
 
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-x-auto">
+      <ScrollRow fadeFrom="from-slate-900" className="bg-slate-900 rounded-2xl border border-slate-800">
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-slate-500 border-b border-slate-800">
@@ -107,7 +108,7 @@ export function AdminStatsSection() {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRow>
     </div>
   );
 }

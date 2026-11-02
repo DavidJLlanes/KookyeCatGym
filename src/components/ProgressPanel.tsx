@@ -2,6 +2,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { TrendingUp, BarChart2, Award, Calculator, Target, Dumbbell, Calendar, ChevronDown, Flame, Percent, Clock, Timer, Trophy, ListOrdered, ArrowUp, ArrowDown, Share2, Map, Sparkles, Images } from 'lucide-react';
 import BodyProgressSection, { BodyProgressSectionProps } from './BodyProgressSection';
+import BodyWeightSection from './BodyWeightSection';
+import StatTile from './StatTile';
+import ScrollRow from './ScrollRow';
+import ExternalAiCard from './ExternalAiCard';
 import type { MediaItem } from '../api/client';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell, Legend } from 'recharts';
 import { WorkoutLog, Exercise } from '../types';
@@ -9,7 +13,7 @@ import { MUSCLE_GROUPS, getMuscleColor } from '../data/exerciseMeta';
 import DecimalInput from './DecimalInput';
 import { formatEsNumber, formatEsCompactKg } from '../utils/number';
 import { computeAllTimeRecords, computeSessionRecords, PrEvent } from '../utils/records';
-import { calculateMuscleStats, calculateBodyLoad } from '../utils/muscleStats';
+import { calculateMuscleStats, calculateBodyLoad, calculateRecovery, calculateUntrained } from '../utils/muscleStats';
 import { get1RMHistory } from '../utils/oneRMEstimate';
 import { generateYearHeatmap } from '../utils/activityHeatmap';
 import { ProgressionRule, prefillWithProgression } from '../utils/progressionRules';
@@ -17,7 +21,8 @@ import { getLastPerformanceSets } from '../utils/lastPerformance';
 import { calculateAllBalances as calculateMuscleBalances } from '../utils/muscleBalance';
 import ShareCardModal from './ShareCardModal';
 import ConstancyCalendar from './ConstancyCalendar';
-import MuscleMapVisual from './MuscleMapVisual';
+import MuscleMapVisual, { MapMode } from './MuscleMapVisual';
+import { isHold } from '../utils/holdSets';
 import OneRMChart from './OneRMChart';
 import ActivityHeatmap from './ActivityHeatmap';
 import ProgressionRulesPanel from './ProgressionRulesPanel';
@@ -50,21 +55,14 @@ export default function ProgressPanel({
 }: ProgressPanelProps) {
   // Muscle focus: calculates completed sets per muscle group
   const muscleFocusData = useMemo(() => {
-    const focus: Record<string, number> = {
-      Pecho: 0,
-      Espalda: 0,
-      Piernas: 0,
-      Hombros: 0,
-      Brazos: 0,
-      Abdomen: 0,
-    };
+    const focus: Record<string, number> = Object.fromEntries(MUSCLE_GROUPS.map((g) => [g, 0]));
 
     logs.forEach((log) => {
       log.exercises.forEach((we) => {
         const ex = exercises.find((e) => e.id === we.exerciseId);
         if (ex) {
           const completedSetsCount = we.sets.filter((s) => s.completed).length;
-          focus[ex.muscleGroup] += completedSetsCount;
+          focus[ex.muscleGroup] = (focus[ex.muscleGroup] ?? 0) + completedSetsCount;
         }
       });
     });
@@ -94,8 +92,11 @@ export default function ProgressPanel({
 
   // Muscle Map Stats
   const [musclePeriod, setMusclePeriod] = useState<number | null>(30);
+  const [mapMode, setMapMode] = useState<MapMode>('volume');
   const muscleStats = useMemo(() => calculateMuscleStats(logs, exercises, musclePeriod), [logs, exercises, musclePeriod]);
   const bodyLoad = useMemo(() => calculateBodyLoad(logs, exercises, musclePeriod), [logs, exercises, musclePeriod]);
+  const recoveryStatus = useMemo(() => calculateRecovery(logs, exercises), [logs, exercises]);
+  const untrainedStatus = useMemo(() => calculateUntrained(logs, exercises), [logs, exercises]);
   const lastLogDate = useMemo(
     () => logs.reduce<string | null>((latest, l) => (!latest || new Date(l.date) > new Date(latest) ? l.date : latest), null),
     [logs]
@@ -175,6 +176,8 @@ export default function ProgressPanel({
     const sortedLogs = [...logs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     const data: any[] = [];
+    // Ejercicio por tiempo: la serie guarda segundos, así que no hay volumen ni 1RM
+    const holdEx = isHold(exercises.find((e) => e.id === selectedExId));
     
     sortedLogs.forEach((log) => {
       // Find matches for the selected exercise in this workout log
@@ -189,14 +192,14 @@ export default function ProgressPanel({
         matchedExs.forEach((we) => {
           we.sets.forEach((set) => {
             if (set.completed) {
-              const vol = set.weight * set.reps;
+              const vol = holdEx ? 0 : set.weight * set.reps;
               totalVolume += vol;
               totalReps += set.reps;
               if (set.weight > maxWeight) {
                 maxWeight = set.weight;
               }
               // Epley: 1RM = w * (1 + r / 30)
-              const oneRM = set.weight * (1 + set.reps / 30);
+              const oneRM = holdEx ? 0 : set.weight * (1 + set.reps / 30);
               if (oneRM > best1RM) {
                 best1RM = oneRM;
               }
@@ -204,7 +207,7 @@ export default function ProgressPanel({
           });
         });
 
-        if (totalVolume > 0) {
+        if (totalVolume > 0 || (holdEx && totalReps > 0)) {
           const dateObj = new Date(log.date);
           const formattedDate = dateObj.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
           
@@ -221,7 +224,7 @@ export default function ProgressPanel({
     });
 
     return data;
-  }, [logs, selectedExId]);
+  }, [logs, selectedExId, exercises]);
 
   // Overall statistics
   const stats = useMemo(() => {
@@ -437,11 +440,16 @@ export default function ProgressPanel({
 
   const selectedExerciseObject = exercises.find((e) => e.id === selectedExId);
 
+  // Un ejercicio por tiempo solo tiene sentido con "mejor peso" y tiempo total
+  const holdSelected = isHold(selectedExerciseObject);
+  const metric: typeof metricType = holdSelected && (metricType === 'volume' || metricType === 'one_rep_max') ? 'total_reps' : metricType;
+  const metricTabs = (holdSelected ? ['max_weight', 'total_reps'] : ['volume', 'max_weight', 'total_reps', 'one_rep_max']) as (typeof metricType)[];
+
   const getMetricLabel = (m: typeof metricType) => {
     switch (m) {
       case 'volume': return 'Volumen Total (kg)';
       case 'max_weight': return 'Peso Máximo (kg)';
-      case 'total_reps': return 'Repeticiones Totales';
+      case 'total_reps': return holdSelected ? 'Tiempo total (s)' : 'Repeticiones Totales';
       case 'one_rep_max': return '1RM Estimado (kg)';
     }
   };
@@ -449,25 +457,20 @@ export default function ProgressPanel({
   return (
     <div id="progress-panel" className="space-y-6 text-slate-200">
       {/* 0. Header con acceso a la tarjeta compartible */}
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-black text-white text-lg tracking-tight">Tu Progreso</h2>
-        <button
-          id="btn-open-share-card"
-          type="button"
-          onClick={() => setShareModalOpen(true)}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-950/20 cursor-pointer shrink-0"
-        >
-          <Share2 className="h-3.5 w-3.5" />
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 className="min-w-0 font-black text-white text-lg tracking-tight">Tu Progreso</h2>
+        <button id="btn-open-share-card" type="button" onClick={() => setShareModalOpen(true)} className="btn btn-primary btn-sm shrink-0">
+          <Share2 />
           Compartir
         </button>
       </div>
 
       {/* 0.5. Progress View Tabs */}
-      <div className="flex gap-2 border-b border-slate-800 overflow-x-auto">
+      <ScrollRow scrollerClassName="flex gap-1 border-b border-slate-800 snap-x" scrollerProps={{ role: 'tablist', 'aria-label': 'Secciones de Progreso' }}>
         {[
           { id: 'overview', label: 'Resumen', icon: TrendingUp },
           { id: 'muscle', label: 'Músculos', icon: Map },
-          ...(onUploadProgressPhoto ? [{ id: 'physique', label: 'Físico', icon: Images }] : []),
+          { id: 'physique', label: 'Físico', icon: Images },
           { id: 'oneRM', label: '1RM', icon: Trophy },
           { id: 'heatmap', label: 'Actividad', icon: Calendar },
           { id: 'progression', label: 'Progresión', icon: ArrowUp },
@@ -479,8 +482,10 @@ export default function ProgressPanel({
           return (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={isActive}
               onClick={() => setProgressTab(tab.id as any)}
-              className={`px-4 py-2 border-b-2 transition-colors flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+              className={`snap-start px-3.5 min-h-[2.75rem] border-b-2 transition-colors flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
                 isActive
                   ? 'border-blue-500 text-blue-400'
                   : 'border-transparent text-slate-400 hover:text-slate-300'
@@ -491,12 +496,27 @@ export default function ProgressPanel({
             </button>
           );
         })}
-      </div>
+      </ScrollRow>
 
       {/* Content based on selected tab */}
       {progressTab === 'muscle' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+            {([['volume', 'Volumen'], ['recovery', 'Recuperación'], ['untrained', 'Sin entrenar']] as [MapMode, string][]).map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMapMode(m)}
+                aria-pressed={mapMode === m}
+                className={`py-2 rounded-lg text-xs font-bold transition cursor-pointer ${mapMode === m ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {mapMode === 'recovery' && <p className="text-xs text-slate-500">En ámbar, lo que sigue recuperándose: cuanto más intenso, más reciente y más series. Un músculo apagado ya puede volver a entrenarse.</p>}
+          {mapMode === 'untrained' && <p className="text-xs text-slate-500">En rojo, lo que lleva una semana o más sin trabajarse; el más intenso, un mes o más (o nunca).</p>}
+          <div className={`flex gap-2 flex-wrap ${mapMode === 'volume' ? '' : 'hidden'}`}>
             {([[7, '7 días'], [30, '30 días'], [90, '3 meses'], [null, 'Todo']] as [number | null, string][]).map(([days, label]) => (
               <button
                 key={label}
@@ -509,7 +529,7 @@ export default function ProgressPanel({
               </button>
             ))}
           </div>
-          {Object.keys(bodyLoad).length === 0 && (
+          {mapMode === 'volume' && Object.keys(bodyLoad).length === 0 && (
             <div className="p-3 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-400">
               No hay series registradas en este periodo.
               {lastLogDate && <> Tu último entrenamiento fue el {new Date(lastLogDate).toLocaleDateString('es-ES')}; prueba con un periodo más largo.</>}
@@ -520,18 +540,23 @@ export default function ProgressPanel({
             load={bodyLoad}
             selectedMuscle={selectedMuscle}
             onMuscleClick={setSelectedMuscle}
+            mode={mapMode}
+            partStatus={mapMode === 'recovery' ? recoveryStatus : mapMode === 'untrained' ? untrainedStatus : undefined}
           />
         </motion.div>
       )}
 
-      {progressTab === 'physique' && onUploadProgressPhoto && onUpdatePhoto && onDeletePhoto && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <BodyProgressSection
-            photos={progressPhotos}
-            onUpload={onUploadProgressPhoto}
-            onUpdate={onUpdatePhoto}
-            onDelete={onDeletePhoto}
-          />
+      {progressTab === 'physique' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+          <BodyWeightSection logs={logs} exercises={exercises} />
+          {onUploadProgressPhoto && onUpdatePhoto && onDeletePhoto && (
+            <BodyProgressSection
+              photos={progressPhotos}
+              onUpload={onUploadProgressPhoto}
+              onUpdate={onUpdatePhoto}
+              onDelete={onDeletePhoto}
+            />
+          )}
         </motion.div>
       )}
 
@@ -609,8 +634,9 @@ export default function ProgressPanel({
       )}
 
       {progressTab === 'coach' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
           <AICoachPanel logs={logs} exercises={exercises} progressionRules={progressionRules} />
+          <ExternalAiCard logs={logs} exercises={exercises} progressionRules={progressionRules} />
         </motion.div>
       )}
 
@@ -626,47 +652,11 @@ export default function ProgressPanel({
       {progressTab === 'overview' && (
         <>
           {/* 1. Quick Stats Banner */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg flex items-center gap-3">
-          <div className="p-3 bg-blue-950/60 text-blue-400 rounded-xl border border-blue-500/20">
-            <Calendar className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Entrenamientos</div>
-            <div id="stat-total-workouts" className="text-xl font-black text-white">{stats.totalWorkouts}</div>
-          </div>
-        </div>
-
-        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg flex items-center gap-3">
-          <div className="p-3 bg-amber-950/50 text-amber-400 rounded-xl border border-amber-500/20 shrink-0">
-            <Flame className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Racha Activa</div>
-            <div id="stat-streak" className="text-xl font-black text-white truncate">{stats.streak} días</div>
-            <div className="text-[10px] font-bold text-slate-500 truncate">récord: {stats.longestStreak} días</div>
-          </div>
-        </div>
-
-        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg flex items-center gap-3">
-          <div className="p-3 bg-blue-950/60 text-blue-400 rounded-xl border border-blue-500/20">
-            <Dumbbell className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Series Completadas</div>
-            <div id="stat-total-sets" className="text-xl font-black text-white">{stats.totalSetsLogged}</div>
-          </div>
-        </div>
-
-        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg flex items-center gap-3">
-          <div className="p-3 bg-emerald-950/50 text-emerald-400 rounded-xl border border-emerald-500/20">
-            <TrendingUp className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Carga Acumulada</div>
-            <div id="stat-total-weight" className="text-sm font-black text-white truncate">{formatEsCompactKg(stats.totalKgLifted)}</div>
-          </div>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatTile id="stat-total-workouts" icon={Calendar} label="Entrenamientos" value={stats.totalWorkouts} />
+        <StatTile id="stat-streak" icon={Flame} tone="bg-amber-950/50 text-amber-400 border-amber-500/20" label="Racha activa" value={`${stats.streak} días`} sub={`récord: ${stats.longestStreak} días`} />
+        <StatTile id="stat-total-sets" icon={Dumbbell} label="Series completadas" value={stats.totalSetsLogged} />
+        <StatTile id="stat-total-weight" icon={TrendingUp} tone="bg-emerald-950/50 text-emerald-400 border-emerald-500/20" label="Carga acumulada" value={formatEsCompactKg(stats.totalKgLifted)} />
       </div>
 
       {/* 1.5. Time Stats: Total / Semana / Hoy */}
@@ -811,19 +801,19 @@ export default function ProgressPanel({
 
           {/* Metric selector tabs */}
           <div className="flex flex-wrap gap-1.5 p-1 bg-slate-950 border border-slate-850 rounded-xl">
-            {(['volume', 'max_weight', 'total_reps', 'one_rep_max'] as const).map((m) => (
+            {metricTabs.map((m) => (
               <button
                 key={m}
                 onClick={() => setMetricType(m)}
                 className={`flex-1 min-w-[80px] text-center py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  metricType === m
+                  metric === m
                     ? 'bg-blue-600 text-white shadow-lg'
                     : 'text-slate-400 hover:text-slate-250 hover:bg-slate-900/60'
                 }`}
               >
                 {m === 'volume' && 'Volumen'}
                 {m === 'max_weight' && 'Mejor Peso'}
-                {m === 'total_reps' && 'Reps Totales'}
+                {m === 'total_reps' && (holdSelected ? 'Tiempo total' : 'Reps Totales')}
                 {m === 'one_rep_max' && '1RM'}
               </button>
             ))}
@@ -848,8 +838,8 @@ export default function ProgressPanel({
                   />
                   <Area
                     type="monotone"
-                    dataKey={metricType}
-                    name={getMetricLabel(metricType)}
+                    dataKey={metric}
+                    name={getMetricLabel(metric)}
                     stroke="#3b82f6"
                     strokeWidth={2.5}
                     fillOpacity={1}
@@ -1008,8 +998,8 @@ export default function ProgressPanel({
                     </div>
                   </div>
                   <div className="text-xs font-extrabold text-amber-400 shrink-0 text-right">
-                    {ev.type === 'weight' ? `${formatEsNumber(ev.value)} kg` : `${ev.value} reps`}
-                    <div className="text-[9px] text-slate-500 font-semibold">antes {ev.type === 'weight' ? `${formatEsNumber(ev.previousValue)} kg` : `${ev.previousValue} reps`}</div>
+                    {ev.type === 'weight' ? `${formatEsNumber(ev.value)} kg` : `${ev.value} ${ev.hold ? 's' : 'reps'}`}
+                    <div className="text-[9px] text-slate-500 font-semibold">antes {ev.type === 'weight' ? `${formatEsNumber(ev.previousValue)} kg` : `${ev.previousValue} ${ev.hold ? 's' : 'reps'}`}</div>
                   </div>
                 </div>
               ))}

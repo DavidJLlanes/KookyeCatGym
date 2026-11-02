@@ -72,7 +72,11 @@ export default function ProgressionRulesPanel({
           <label className="text-xs font-bold text-slate-400 block mb-1">Tipo de Progresión</label>
           <select
             value={draft.type}
-            onChange={(e) => setDraft({ ...draft, type: e.target.value as ProgressionType })}
+            onChange={(e) => {
+              const type = e.target.value as ProgressionType;
+              // Al elegir la triple se rellenan sus valores habituales
+              setDraft(type === 'triple' ? { minReps: 8, targetReps: 12, minSets: 3, maxSets: 5, repIncrement: 1, weightIncrement: 2.5, ...draft, type } : { ...draft, type });
+            }}
             className="w-full px-2 py-2 bg-slate-950 border border-slate-700 rounded text-slate-200 text-xs"
           >
             {(Object.keys(PROGRESSION_TYPE_LABEL) as ProgressionType[]).map((t) => (
@@ -93,7 +97,7 @@ export default function ProgressionRulesPanel({
           <span className="text-xs font-bold text-slate-400">Regla activa</span>
         </label>
 
-        {(draft.type === 'linear' || draft.type === 'double_progression') && (
+        {(draft.type === 'linear' || draft.type === 'double_progression' || draft.type === 'triple') && (
           <div>
             <label className="text-xs font-bold text-slate-400 block mb-1">Incremento de Peso (kg)</label>
             <input
@@ -128,6 +132,34 @@ export default function ProgressionRulesPanel({
                 onChange={(e) => setDraft({ ...draft, repIncrement: parseInt(e.target.value) || 0 })}
                 className="w-full px-2 py-2 bg-slate-950 border border-slate-700 rounded text-slate-200 text-base"
               />
+            </div>
+          </div>
+        )}
+
+        {draft.type === 'triple' && (
+          <div className="space-y-2">
+            <p className="text-[11px] leading-snug text-slate-500">
+              Primero subes repeticiones hasta el máximo; con todas las series en el máximo se añade una serie (hasta el tope) y las
+              repeticiones vuelven al mínimo; con el tope de series y todo en el máximo, sube la carga y se empieza de nuevo.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ['minReps', 'Reps mínimas'],
+                ['targetReps', 'Reps máximas'],
+                ['minSets', 'Series mínimas'],
+                ['maxSets', 'Series máximas'],
+              ] as const).map(([key, label]) => (
+                <div key={key}>
+                  <label className="text-xs font-bold text-slate-400 block mb-1">{label}</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={draft[key] ?? ''}
+                    onChange={(e) => setDraft({ ...draft, [key]: parseInt(e.target.value) || 0 })}
+                    className="w-full px-2 py-2 bg-slate-950 border border-slate-700 rounded text-slate-200 text-base"
+                  />
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -23,7 +23,8 @@ import {
   Shuffle,
   Users,
   LogOut,
-  Share2
+  Share2,
+  Pencil
 } from 'lucide-react';
 
 import { Exercise, Routine, WorkoutLog, WorkoutExercise, WorkoutSet } from './types';
@@ -35,6 +36,14 @@ import { formatEsNumber } from './utils/number';
 import { getLastPerformanceSets } from './utils/lastPerformance';
 import { ProgressionRule, prefillWithProgression } from './utils/progressionRules';
 import ImportPanel, { ImportOutcome } from './components/ImportPanel';
+import { useUserData } from './context/UserDataContext';
+import WorkoutLogEditor from './components/WorkoutLogEditor';
+import NextSessionCard from './components/NextSessionCard';
+import AppMenu from './components/AppMenu';
+import WeekPlanCard from './components/WeekPlanCard';
+import { deloadExercise, isDeloadWeek } from './utils/deload';
+import { blankLog } from './utils/logEdit';
+import { bodyWeightsToCsv, downloadCsv, workoutsToCsv } from './utils/csvExport';
 import PasskeySection from './components/PasskeySection';
 import { prepareMediaUpload } from './utils/mediaUpload';
 import WorkoutPhotos from './components/WorkoutPhotos';
@@ -44,9 +53,12 @@ import {
   detectMuscleZone,
   MuscleZone,
   MUSCLE_GROUP_ZONES,
-  MUSCLE_ZONE_IMAGE,
   MUSCLE_ZONE_LABEL,
 } from './utils/muscleZone';
+import MuscleZoneImage from './components/MuscleZoneImage';
+import { remapWorkoutList, remapActiveWorkout, remapByExerciseId } from './utils/exerciseIds';
+import { deepEqual, mergeCollection, mergeRecord } from './utils/threeWayMerge';
+import { defaultReps, formatReps } from './utils/holdSets';
 
 import ExerciseLibraryPanel from './components/ExerciseLibraryPanel';
 import ActiveWorkoutPanel from './components/ActiveWorkoutPanel';
@@ -98,7 +110,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
   const displayExercises = useMemo(() => {
     const primaryByExercise = new Map(exerciseOnlyMedia.filter((m) => m.isPrimary).map((m) => [m.exerciseId, m.url]));
     if (primaryByExercise.size === 0) return exercises;
-    return exercises.map((e) => (primaryByExercise.has(e.id) ? { ...e, imageUrl: primaryByExercise.get(e.id)! } : e));
+    return exercises.map((e) => (primaryByExercise.has(e.id) ? { ...e, imageUrl: primaryByExercise.get(e.id)!, videoUrl: undefined } : e));
   }, [exercises, exerciseOnlyMedia]);
   const [activeWorkout, setActiveWorkout] = useState<{
     routineId?: string;
@@ -172,6 +184,13 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
       ),
     [exercises, randomGroups, randomZones, randomEquipment, zoneByExerciseId]
   );
+  const { data: userData } = useUserData();
+  // Lo último que este dispositivo vio del servidor (rutinas y entrenamientos).
+  // Es la versión BASE de la fusión de tres vías: permite combinar lo que se
+  // editó aquí con lo que se editó a la vez en otro dispositivo.
+  const routinesBase = useRef<Map<string, Routine>>(new Map());
+  const logsBase = useRef<Map<string, WorkoutLog>>(new Map());
+  const [editingLog, setEditingLog] = useState<{ log: WorkoutLog; isNew: boolean } | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [backupJson, setBackupJson] = useState('');
 
@@ -213,10 +232,10 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
           exercisesModulePromise,
           api.getProgressionRules().catch(() => []),
         ]);
-        setProgressionRules(Array.isArray(remoteRules) ? remoteRules : []);
+        setProgressionRules(Array.isArray(remoteRules) ? remapByExerciseId(remoteRules) : []);
         api
           .getMyMedia()
-          .then((items) => setExerciseMedia(Array.isArray(items) ? items : []))
+          .then((items) => setExerciseMedia(Array.isArray(items) ? remapByExerciseId(items) : []))
           .catch(() => {});
         let remoteActive = remoteActiveRaw;
 
@@ -239,13 +258,9 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
           const updated = remoteEx.map((e: any) => {
             const initialMatch = INITIAL_EXERCISES.find((ie) => ie.id === e.id);
             if (initialMatch && !e.isCustom) {
-              return {
-                ...e,
-                name: initialMatch.name,
-                imageUrl: initialMatch.imageUrl,
-                instructions: initialMatch.instructions,
-                defaultRestTime: initialMatch.defaultRestTime,
-              };
+              // Un ejercicio de fábrica guardado en el servidor se refresca entero
+              // con el catálogo (nombre, medios, grupo, zona, tipo...).
+              return { ...e, ...initialMatch };
             }
             return e;
           });
@@ -257,21 +272,25 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
 
         // Routines: respeta arrays vacíos del servidor
         if (remoteRout !== null && remoteRout !== undefined) {
-          setRoutines(remoteRout);
+          const loaded = remapWorkoutList<Routine>(remoteRout);
+          routinesBase.current = new Map(loaded.map((r) => [r.id, r]));
+          setRoutines(loaded);
         } else {
           setRoutines(DEFAULT_ROUTINES);
         }
 
         // Logs: respeta arrays vacíos del servidor
         if (remoteLogs !== null && remoteLogs !== undefined) {
-          setLogs(remoteLogs);
+          const loaded = remapWorkoutList<WorkoutLog>(remoteLogs);
+          logsBase.current = new Map(loaded.map((l) => [l.id, l]));
+          setLogs(loaded);
         } else {
           setLogs(DEFAULT_LOGS);
         }
 
         // Active Workout
         if (remoteActive) {
-          setActiveWorkout(remoteActive);
+          setActiveWorkout(remapActiveWorkout(remoteActive));
         }
       } catch (err) {
         // Fallback to localStorage if API unavailable
@@ -288,13 +307,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
             const updated = parsed.map((e: any) => {
               const initialMatch = INITIAL_EXERCISES.find((ie) => ie.id === e.id);
               if (initialMatch && !e.isCustom) {
-                return {
-                  ...e,
-                  name: initialMatch.name,
-                  imageUrl: initialMatch.imageUrl,
-                  instructions: initialMatch.instructions,
-                  defaultRestTime: initialMatch.defaultRestTime,
-                };
+                return { ...e, ...initialMatch };
               }
               return e;
             });
@@ -310,7 +323,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
         const savedRout = localStorage.getItem('hevy_routines');
         try {
           const parsed = savedRout ? JSON.parse(savedRout) : null;
-          setRoutines(parsed !== null ? parsed : DEFAULT_ROUTINES);
+          setRoutines(parsed !== null ? remapWorkoutList(parsed) : DEFAULT_ROUTINES);
         } catch {
           setRoutines(DEFAULT_ROUTINES);
         }
@@ -318,14 +331,14 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
         const savedLogs = localStorage.getItem('hevy_logs');
         try {
           const parsed = savedLogs ? JSON.parse(savedLogs) : null;
-          setLogs(parsed !== null ? parsed : DEFAULT_LOGS);
+          setLogs(parsed !== null ? remapWorkoutList(parsed) : DEFAULT_LOGS);
         } catch {
           setLogs(DEFAULT_LOGS);
         }
 
         const savedActive = localStorage.getItem('hevy_active_workout');
         if (savedActive) {
-          setActiveWorkout(JSON.parse(savedActive));
+          setActiveWorkout(remapActiveWorkout(JSON.parse(savedActive)));
         }
       }
     };
@@ -366,15 +379,34 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
         return !prev || JSON.stringify(prev) !== JSON.stringify(r);
       });
 
+      // Si otro dispositivo editó la misma rutina desde que la cargué, se fusionan
+      // los cambios campo a campo en vez de pisar los suyos.
+      let toSave = changed;
+      let finalRout = newRout;
+      try {
+        const remoteById = new Map(remapWorkoutList(await api.getRoutines()).map((r) => [r.id, r]));
+        const merged = changed.map((r) => mergeRecord(routinesBase.current.get(r.id), r, remoteById.get(r.id)));
+        if (merged.some((m, i) => !deepEqual(m, changed[i]))) {
+          const mergedById = new Map(merged.map((r) => [r.id, r]));
+          toSave = merged;
+          finalRout = newRout.map((r) => mergedById.get(r.id) ?? r);
+          setRoutines((cur) => cur.map((r) => mergedById.get(r.id) ?? r));
+        }
+      } catch {
+        // Sin conexión con el servidor: se guarda tal cual, como siempre.
+      }
+
       await Promise.all([
         ...removedIds.map((id) => api.deleteRoutine(id)),
-        ...changed.map((r) => api.saveRoutine(r)),
+        ...toSave.map((r) => api.saveRoutine(r)),
       ]);
+      removedIds.forEach((id) => routinesBase.current.delete(id));
+      toSave.forEach((r) => routinesBase.current.set(r.id, r));
 
-      if (newRout.length === 0) {
+      if (finalRout.length === 0) {
         localStorage.removeItem('hevy_routines');
       } else {
-        localStorage.setItem('hevy_routines', JSON.stringify(newRout));
+        localStorage.setItem('hevy_routines', JSON.stringify(finalRout));
       }
     } catch (err) {
       console.error('Error saving routines to API, using localStorage fallback', err);
@@ -397,21 +429,77 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
         return !prev || JSON.stringify(prev) !== JSON.stringify(l);
       });
 
+      // Mismo criterio que con las rutinas: un entrenamiento editado a la vez en
+      // dos dispositivos se fusiona campo a campo (solo si ya existía antes).
+      let toSave = changed;
+      let finalLogs = newLogs;
+      if (changed.some((l) => logsBase.current.has(l.id))) {
+        try {
+          const remoteById = new Map(remapWorkoutList(await api.getLogs()).map((l) => [l.id, l]));
+          const merged = changed.map((l) => mergeRecord(logsBase.current.get(l.id), l, remoteById.get(l.id)));
+          if (merged.some((m, i) => !deepEqual(m, changed[i]))) {
+            const mergedById = new Map(merged.map((l) => [l.id, l]));
+            toSave = merged;
+            finalLogs = newLogs.map((l) => mergedById.get(l.id) ?? l);
+            setLogs((cur) => cur.map((l) => mergedById.get(l.id) ?? l));
+          }
+        } catch {
+          // Sin conexión con el servidor: se guarda tal cual.
+        }
+      }
+
       await Promise.all([
         ...removedIds.map((id) => api.deleteLog(id)),
-        ...changed.map((l) => api.saveLog(l)),
+        ...toSave.map((l) => api.saveLog(l)),
       ]);
+      removedIds.forEach((id) => logsBase.current.delete(id));
+      toSave.forEach((l) => logsBase.current.set(l.id, l));
 
-      if (newLogs.length === 0) {
+      if (finalLogs.length === 0) {
         localStorage.removeItem('hevy_logs');
       } else {
-        localStorage.setItem('hevy_logs', JSON.stringify(newLogs));
+        localStorage.setItem('hevy_logs', JSON.stringify(finalLogs));
       }
     } catch (err) {
       console.error('Error saving logs to API, using localStorage fallback', err);
       localStorage.setItem('hevy_logs', JSON.stringify(newLogs));
     }
   };
+
+  // Al volver a la app (o a la pestaña) se traen los cambios hechos en otros
+  // dispositivos y se fusionan con lo local, sin pisar nada ni guardar de nuevo.
+  useEffect(() => {
+    let lastPull = Date.now();
+    const pull = async () => {
+      if (document.visibilityState !== 'visible' || Date.now() - lastPull < 60000) return;
+      lastPull = Date.now();
+      try {
+        const [rr, ll] = await Promise.all([api.getRoutines(), api.getLogs()]);
+        const theirsR = remapWorkoutList(rr);
+        const theirsL = remapWorkoutList(ll);
+        const baseR = [...routinesBase.current.values()];
+        const baseL = [...logsBase.current.values()];
+        setRoutines((cur) => {
+          const merged = mergeCollection(baseR, cur, theirsR);
+          return deepEqual(merged, cur) ? cur : merged;
+        });
+        setLogs((cur) => {
+          const merged = mergeCollection(baseL, cur, theirsL);
+          return deepEqual(merged, cur) ? cur : merged;
+        });
+        routinesBase.current = new Map(theirsR.map((r) => [r.id, r]));
+        logsBase.current = new Map(theirsL.map((l) => [l.id, l]));
+      } catch {
+        // Sin conexión: no pasa nada, se reintentará la próxima vez.
+      }
+    };
+    document.addEventListener('visibilitychange', pull);
+    window.addEventListener('focus', pull);
+    return () => {
+      document.removeEventListener('visibilitychange', pull);
+      window.removeEventListener('focus', pull);
+    };
+  }, []);
 
   // El entrenamiento activo se guarda con "debounce": la UI se actualiza al
   // instante pero la escritura en el servidor se agrupa (evita 1 POST por tecla
@@ -505,9 +593,9 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
 
     const randomExercises: WorkoutExercise[] = picked.map((ex, idx) => {
       const baseSets: WorkoutSet[] = [
-        { id: `set-random-${Date.now()}-${idx}-1`, weight: 0, reps: 10, completed: false },
-        { id: `set-random-${Date.now()}-${idx}-2`, weight: 0, reps: 10, completed: false },
-        { id: `set-random-${Date.now()}-${idx}-3`, weight: 0, reps: 10, completed: false },
+        { id: `set-random-${Date.now()}-${idx}-1`, weight: 0, reps: defaultReps(ex), completed: false },
+        { id: `set-random-${Date.now()}-${idx}-2`, weight: 0, reps: defaultReps(ex), completed: false },
+        { id: `set-random-${Date.now()}-${idx}-3`, weight: 0, reps: defaultReps(ex), completed: false },
       ];
       return {
         id: `we-random-${Date.now()}-${idx}`,
@@ -517,7 +605,8 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
         sets: prefillWithProgression(
           baseSets,
           getLastPerformanceSets(ex.id, logs),
-          progressionRules.find((r) => r.exerciseId === ex.id)
+          progressionRules.find((r) => r.exerciseId === ex.id),
+          userData['weight-stacks'][ex.id]
         ),
       };
     });
@@ -563,21 +652,29 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
         // Tipos de serie definidos en la rutina (calentamiento, drop set…)
         ...(s.isWarmup ? { isWarmup: true } : {}),
         ...(s.setType ? { setType: s.setType } : {}),
+        ...(s.restTime !== undefined ? { restTime: s.restTime } : {}),
+        ...(s.distance !== undefined ? { distance: s.distance } : {}),
       }));
       return {
         id: `we-active-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         exerciseId: re.exerciseId,
         restTime: re.restTime,
         ...(re.supersetId ? { supersetId: re.supersetId } : {}),
-        sets: prefillWithProgression(baseSets, lastSets, rulesByExercise.get(re.exerciseId)),
+        ...(re.alternativeIds && re.alternativeIds.length > 0 ? { alternativeIds: re.alternativeIds } : {}),
+        ...(re.perSide ? { perSide: true } : {}),
+        sets: prefillWithProgression(baseSets, lastSets, rulesByExercise.get(re.exerciseId), userData['weight-stacks'][re.exerciseId]),
       };
     });
 
+    // En una semana de descarga, menos series y menos peso (y se anota como tal)
+    const inDeload = isDeloadWeek(userData.deload, new Date(), userData['week-start']);
     const freshWorkout = {
       routineId: routine.id,
       routineName: routine.name,
       startTime: new Date().toISOString(),
-      exercises: activeExercises,
+      exercises: inDeload
+        ? activeExercises.map((we) => deloadExercise(we, userData.deload, exercises.find((e) => e.id === we.exerciseId), userData['weight-stacks'][we.exerciseId]))
+        : activeExercises,
     };
 
     saveActiveWorkoutState(freshWorkout);
@@ -659,7 +756,20 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
       id: we.id,
       exerciseId: we.exerciseId,
       restTime: we.restTime,
-      sets: we.sets.map((s) => ({ id: s.id, weight: s.weight, reps: s.reps, completed: false })),
+      ...(we.supersetId ? { supersetId: we.supersetId } : {}),
+      ...(we.alternativeIds && we.alternativeIds.length > 0 ? { alternativeIds: we.alternativeIds } : {}),
+      ...(we.perSide ? { perSide: true } : {}),
+      sets: we.sets.map((s) => ({
+        id: s.id,
+        weight: s.weight,
+        reps: s.reps,
+        completed: false,
+        // Se conservan los tipos de serie y el descanso propio de cada una
+        ...(s.isWarmup ? { isWarmup: true } : {}),
+        ...(s.setType ? { setType: s.setType } : {}),
+        ...(s.restTime !== undefined ? { restTime: s.restTime } : {}),
+        ...(s.distance !== undefined ? { distance: s.distance } : {}),
+      })),
     }));
 
   // Si el entrenamiento se inició desde una rutina y, durante la sesión, se
@@ -671,7 +781,9 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
     const sourceRoutine = workout?.routineId ? routines.find((r) => r.id === workout.routineId) : null;
 
     if (workout && sourceRoutine) {
+      // En una semana de descarga las series se recortan a propósito: eso no es un cambio de plantilla
       const changed =
+        !workout.exercises.some((we) => we.deload) &&
         getWorkoutStructureSignature(workout.exercises) !== getWorkoutStructureSignature(sourceRoutine.exercises);
 
       if (changed) {
@@ -748,6 +860,12 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
 
   // Reordenar carpetas/rutinas: recibe las rutinas cuya posición cambió
   // (folderOrder y/o sortOrder) y las fusiona con el resto sin tocarlas.
+  // Varias rutinas nuevas de golpe (planes de iniciación): una sola escritura,
+  // para que ninguna pise a la anterior.
+  const handleAddRoutines = (newRoutines: Routine[]) => {
+    saveRoutines([...newRoutines, ...routines]);
+  };
+
   const handleReorderRoutines = (updatedRoutines: Routine[]) => {
     const updatedById = new Map(updatedRoutines.map((r) => [r.id, r]));
     const merged = routines.map((r) => updatedById.get(r.id) ?? r);
@@ -912,10 +1030,31 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
     URL.revokeObjectURL(url);
   };
 
+  // Guarda un entrenamiento corregido o registrado a posteriori. El historial se
+  // mantiene ordenado por fecha (más reciente primero) y los récords se
+  // recalculan solos, porque salen siempre del historial.
+  const handleSaveEditedLog = (saved: WorkoutLog) => {
+    const without = logs.filter((l) => l.id !== saved.id);
+    const next = [...without, saved].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    saveLogs(next);
+    setEditingLog(null);
+  };
+
+  const handleExportWorkoutsCsv = () => {
+    downloadCsv(`entrenamientos_${new Date().toISOString().slice(0, 10)}.csv`, workoutsToCsv(logs, exercises));
+  };
+
+  const handleExportBodyCsv = () => {
+    downloadCsv(`peso_corporal_${new Date().toISOString().slice(0, 10)}.csv`, bodyWeightsToCsv(userData['body-weights']));
+  };
+
   const handleImportData = (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const parsed = JSON.parse(backupJson);
+      // Una copia exportada antes de unificar los ids trae los ids antiguos
+      if (Array.isArray(parsed.routines)) parsed.routines = remapWorkoutList(parsed.routines);
+      if (Array.isArray(parsed.logs)) parsed.logs = remapWorkoutList(parsed.logs);
       if (parsed.routines && Array.isArray(parsed.routines)) {
         const mergedRoutines = [...parsed.routines, ...routines.filter(r => !parsed.routines.some((pr: any) => pr.id === r.id))];
         saveRoutines(mergedRoutines);
@@ -943,14 +1082,14 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
     <div id="hevy-app-container" className="min-h-dvh bg-slate-950 text-slate-200 flex flex-col pb-[calc(6rem+env(safe-area-inset-bottom))] font-sans">
       {/* 1. TOP HEADER NAVIGATION BAR (con espacio para el notch/isla dinámica de iOS) */}
       <header className="bg-slate-900 border-b border-slate-800 shadow-xl sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto safe-x sm:px-6 lg:px-8 min-h-16 py-2 flex items-center justify-between gap-3">
 
-          {/* Logo brand */}
-          <div className="flex items-center gap-2.5">
-            <img src="/icon-192.png" alt="KookyeCatGym" className="h-9 w-9 rounded-lg shadow-lg shadow-blue-500/20" />
-            <div className="text-left flex items-center gap-1.5">
-              <span className="font-black text-white tracking-tight text-lg">KookyeCatGym</span>
-              <span className="px-1.5 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider text-amber-400 bg-amber-500/15 border border-amber-500/30">
+          {/* Logo brand: el nombre se acorta si no cabe, nunca empuja a los botones */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <img src="/icon-192.png" alt="KookyeCatGym" className="h-10 w-10 shrink-0 rounded-xl shadow-lg shadow-blue-500/20" />
+            <div className="min-w-0 text-left flex items-center gap-1.5">
+              <span className="truncate font-black text-white tracking-tight text-lg leading-none">KookyeCatGym</span>
+              <span className="hidden min-[400px]:inline shrink-0 px-1.5 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider text-amber-400 bg-amber-500/15 border border-amber-500/30">
                 Beta
               </span>
             </div>
@@ -984,24 +1123,9 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
             })}
           </nav>
 
-          {/* Backup dropdown / Actions */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowBackupModal(true)}
-              className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold border border-slate-800"
-              title="Copia de Seguridad"
-            >
-              <Upload className="h-4 w-4 text-blue-400" />
-              <span className="hidden sm:inline">Copia de Seg.</span>
-            </button>
-            <button
-              onClick={onLogout}
-              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold border border-slate-800"
-              title={`Cerrar sesión (${currentUser.username})`}
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Salir</span>
-            </button>
+          {/* Menú: tamaño de letra, copia de seguridad y salir */}
+          <div className="flex shrink-0 items-center">
+            <AppMenu username={currentUser.username} onBackup={() => setShowBackupModal(true)} onLogout={onLogout} />
           </div>
         </div>
       </header>
@@ -1037,28 +1161,32 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                   <button
                     id="btn-start-empty-workout"
                     onClick={handleStartFreeWorkout}
-                    className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
+                    className="btn btn-primary btn-lg flex-1 md:flex-initial"
                   >
-                    <Plus className="h-4.5 w-4.5" />
+                    <Plus />
                     Entrenamiento Libre
                   </button>
                   <button
                     onClick={() => setCurrentTab('routines')}
-                    className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 rounded-2xl text-sm font-bold transition-all cursor-pointer"
+                    className="btn btn-secondary btn-lg flex-1 md:flex-initial"
                   >
-                    <ClipboardList className="h-4.5 w-4.5 text-blue-400" />
+                    <ClipboardList className="text-blue-400" />
                     Iniciar una Rutina
                   </button>
                   <button
                     id="btn-start-random-workout"
                     onClick={() => setShowRandomWorkoutModal(true)}
-                    className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 rounded-2xl text-sm font-bold transition-all cursor-pointer"
+                    className="btn btn-secondary btn-lg flex-1 md:flex-initial"
                   >
-                    <Shuffle className="h-4.5 w-4.5 text-blue-400" />
+                    <Shuffle className="text-blue-400" />
                     Entrenamiento Aleatorio
                   </button>
                 </div>
               </div>
+
+              <NextSessionCard routines={routines} logs={logs} onStart={handleStartRoutine} />
+
+              <WeekPlanCard routines={routines} logs={logs} onStart={handleStartRoutine} />
 
               {/* Quick Resume Card of last Workout */}
               {lastWorkout && (
@@ -1089,6 +1217,14 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                 <div className="flex items-center gap-2 pb-2">
                   <History className="h-5 w-5 text-blue-400" />
                   <h3 className="font-extrabold text-slate-200 text-base">Historial Reciente de Entrenamientos ({logs.length})</h3>
+                  <button
+                    type="button"
+                    onClick={() => setEditingLog({ log: blankLog(), isNew: true })}
+                    className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-xs font-bold cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Registrar uno pasado
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1106,13 +1242,23 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                             {new Date(log.date).toLocaleString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                        <button
-                          onClick={() => handleDeleteLog(log.id)}
-                          className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-800 transition-colors cursor-pointer"
-                          title="Eliminar del historial"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => setEditingLog({ log, isNew: false })}
+                            className="text-slate-500 hover:text-blue-400 p-1 rounded hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Editar entrenamiento"
+                            aria-label={`Editar ${log.routineName}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLog(log.id)}
+                            className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Eliminar del historial"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-2 bg-slate-950/50 p-3 rounded-xl text-center text-xs border border-slate-800/60">
@@ -1145,7 +1291,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                                 {ex ? ex.name : 'Ejercicio'}
                               </span>
                               <span className="text-slate-400 font-medium">
-                                {item.sets.length} series × {formatEsNumber(maxWeight)}kg • {totalReps} reps
+                                {item.sets.length} series × {formatEsNumber(maxWeight)}kg • {formatReps(totalReps, ex)}
                               </span>
                             </div>
                           );
@@ -1192,6 +1338,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                   onDeleteRoutine={handleDeleteRoutine}
                   onDeleteRoutines={handleDeleteRoutines}
                   onReorderRoutines={handleReorderRoutines}
+                  onAddRoutines={handleAddRoutines}
                 />
               </Suspense>
             </motion.div>
@@ -1211,6 +1358,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                 onUploadMedia={handleUploadMedia}
                 onDeleteMedia={handleDeleteMedia}
                 onSetPrimaryMedia={handleSetPrimaryMedia}
+                logs={logs}
               />
             </motion.div>
           )}
@@ -1321,7 +1469,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
       {/* 4. TAB NAVIGATION FOR MOBILE DEVICES (con espacio para el home indicator de iOS) */}
       {/* Cada botón ocupa todo su carril (flex-1 + stretch vertical), no solo
           el icono/texto, para que el área táctil sea cómoda en móvil. */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 pb-[env(safe-area-inset-bottom)] flex z-30 shadow-2xl">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] flex z-30 shadow-2xl">
         {[
           { id: 'train', label: 'Entrenar', icon: Play },
           { id: 'routines', label: 'Rutinas', icon: ClipboardList },
@@ -1336,16 +1484,17 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
             <button
               key={tab.id}
               onClick={() => setCurrentTab(tab.id as any)}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 cursor-pointer"
+              aria-current={isSelected ? 'page' : undefined}
+              className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-0.5 py-2 min-h-[3.5rem] cursor-pointer"
             >
               <div
-                className={`p-1.5 rounded-xl transition-all ${
-                  isSelected ? 'bg-blue-950/50 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-slate-200'
+                className={`flex h-7 w-11 max-w-full items-center justify-center rounded-full transition-all ${
+                  isSelected ? 'bg-blue-600/25 text-blue-300' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <Icon className="h-5 w-5" />
               </div>
-              <span className={`text-[10px] font-black tracking-tight ${isSelected ? 'text-blue-400 font-black' : 'text-slate-400 font-semibold'}`}>
+              <span className={`block w-full truncate text-center text-[10px] leading-none tracking-tight ${isSelected ? 'text-blue-300 font-black' : 'text-slate-400 font-semibold'}`}>
                 {tab.label}
               </span>
             </button>
@@ -1388,6 +1537,33 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                   <Download className="h-4.5 w-4.5" />
                   Exportar JSON
                 </button>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-slate-300 uppercase tracking-wider">Hoja de cálculo (CSV)</div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Un archivo que se abre con doble clic en Excel o LibreOffice: una fila por serie, o tus pesajes corporales.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={handleExportWorkoutsCsv}
+                    disabled={logs.length === 0}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-slate-700"
+                  >
+                    <Download className="h-4 w-4" />
+                    Entrenamientos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportBodyCsv}
+                    disabled={userData['body-weights'].length === 0}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-slate-700"
+                  >
+                    <Download className="h-4 w-4" />
+                    Peso corporal
+                  </button>
+                </div>
               </div>
 
               <div className="border-t border-slate-800 pt-5 space-y-3">
@@ -1435,6 +1611,16 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
           </div>
         )}
       </AnimatePresence>
+
+      {editingLog && (
+        <WorkoutLogEditor
+          log={editingLog.log}
+          isNew={editingLog.isNew}
+          exercises={displayExercises}
+          onSave={handleSaveEditedLog}
+          onClose={() => setEditingLog(null)}
+        />
+      )}
 
       {/* 6. CELEBRATION MODAL OVERLAY ON WORKOUT COMPLETE */}
       <AnimatePresence>
@@ -1652,11 +1838,9 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                               : 'bg-slate-950 border-slate-850 text-slate-400 hover:bg-slate-800'
                           }`}
                         >
-                          <img
-                            src={MUSCLE_ZONE_IMAGE[zone]}
-                            alt=""
-                            loading="lazy"
-                            className="h-7 w-7 rounded-full object-contain bg-white border border-slate-700 shrink-0"
+                          <MuscleZoneImage
+                            zone={zone}
+                            className="h-7 w-7 rounded-full object-contain bg-white border border-slate-700 shrink-0 overflow-hidden"
                           />
                           {MUSCLE_ZONE_LABEL[zone]}
                         </button>

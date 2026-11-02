@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Brain, Cpu, Activity, ShieldAlert, Zap } from 'lucide-react';
 import { Exercise } from '../types';
-import { detectMuscleZone, MUSCLE_ZONE_IMAGE, MUSCLE_ZONE_LABEL } from '../utils/muscleZone';
+import { detectMuscleZone } from '../utils/muscleZone';
+import MuscleZoneImage from './MuscleZoneImage';
 
 interface ExerciseAIVisualizerProps {
   exercise: Exercise;
@@ -110,6 +111,39 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
           ],
           idealAngle: isCalf ? '30° a 45° de flexión plantar pura' : '90° a 110° de flexión'
         };
+      case 'Cuello':
+        return {
+          primaryActivation: 'Músculos del cuello y elevador de la escápula',
+          synergists: 'Trapecio superior, Esternocleidomastoideo',
+          tempo: '3-2-3-0 (movimiento lento y sin rebotes)',
+          tips: [
+            'Mueve el cuello despacio y sin forzar el final del recorrido; deja de hacerlo si notas pinchazos o mareo.',
+            'Mantén los hombros relajados y alejados de las orejas durante todo el ejercicio.'
+          ],
+          idealAngle: 'Rango cómodo, sin dolor'
+        };
+      case 'Cuerpo completo':
+        return {
+          primaryActivation: 'Trabajo global: piernas, tronco y brazos',
+          synergists: 'Core, Glúteos, Cuádriceps, Hombros',
+          tempo: '2-0-1-0 (ritmo controlado y continuo)',
+          tips: [
+            'Mantén el core firme durante todo el movimiento para transferir la fuerza entre tren inferior y superior.',
+            'Prioriza la técnica sobre la velocidad: si se pierde la postura, reduce el ritmo o el peso.'
+          ],
+          idealAngle: 'Columna neutra durante todo el movimiento'
+        };
+      case 'Cardio':
+        return {
+          primaryActivation: 'Sistema cardiovascular',
+          synergists: 'Piernas, Core',
+          tempo: 'Ritmo constante y sostenible',
+          tips: [
+            'Mantén una respiración rítmica y un ritmo que te permita sostener el esfuerzo.',
+            'Calienta antes de aumentar la intensidad y vuelve a la calma al terminar.'
+          ],
+          idealAngle: 'Postura erguida y relajada'
+        };
       default:
         return {
           primaryActivation: 'Core - Recto Abdominal y Oblicuos (88%)',
@@ -125,7 +159,12 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
     }
   };
 
-  const insights = getAIInsights();
+  const baseInsights = getAIInsights();
+  // El catálogo importado trae los músculos secundarios reales de cada ejercicio.
+  const insights =
+    exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0
+      ? { ...baseInsights, synergists: exercise.secondaryMuscles.join(', ') }
+      : baseInsights;
 
 
   return (
@@ -191,13 +230,7 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
           <div className="flex flex-col h-full justify-between gap-4">
             {/* Anatomy Visualizer container */}
             <div className="flex-grow flex items-center justify-center h-48 relative bg-slate-900/20 rounded-xl border border-slate-900 p-2 overflow-hidden">
-              <img
-                src={MUSCLE_ZONE_IMAGE[zone]}
-                alt={MUSCLE_ZONE_LABEL[zone]}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-full object-contain"
-              />
+              <MuscleZoneImage zone={zone} className="w-full h-full object-contain" />
             </div>
 
             {/* Quick biometric metrics */}

@@ -8,6 +8,7 @@ import {
   parseWorkoutExport,
   sessionsToLogs,
 } from '../utils/importers';
+import { MUSCLE_GROUPS } from '../data/exerciseMeta';
 import { AUTO_MATCH_SCORE, guessEquipment, guessMuscleGroup, rankExercises } from '../utils/importers/exerciseMatch';
 
 type MuscleGroup = Exercise['muscleGroup'];
@@ -32,7 +33,6 @@ interface ImportPanelProps {
   ) => Promise<ImportOutcome>;
 }
 
-const MUSCLE_GROUPS: MuscleGroup[] = ['Pecho', 'Espalda', 'Piernas', 'Hombros', 'Brazos', 'Abdomen'];
 
 // Mismas imágenes de reemplazo que usa la biblioteca al crear un ejercicio personalizado
 function placeholderImage(group: MuscleGroup): string {

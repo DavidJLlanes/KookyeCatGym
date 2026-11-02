@@ -1,7 +1,217 @@
 @import "tailwindcss";
 
-/* Tipografía más grande en toda la app (Tailwind usa rem, así que subir
-   la base escala proporcionalmente todos los tamaños) */
+@layer base {
+/* ------------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------------ */
+
+/* Tipografía más grande en toda la app (Tailwind usa rem, así que subir la
+   base escala proporcionalmente todos los tamaños). --font-scale la cambia el
+   usuario desde el menú (Pequeña 0,9 · Normal 1 · Grande 1,1 · Muy grande 1,2). */
 html {
-  font-size: 19px;
+  font-size: calc(19px * var(--font-scale, 1));
+  /* Fondo oscuro también detrás de todo: en la PWA instalada (iOS) la barra de
+     estado es translúcida y deja ver el fondo de la página; sin esto es blanco
+     y se ve un degradado gris/blanco arriba. */
+  background-color: #0f172a;
+  color-scheme: dark;
+  /* El navegador no reajusta el tamaño del texto por su cuenta al girar el móvil */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #020617;
+  min-height: 100dvh;
+  /* Sin el "rebote" que enseña el fondo al estirar la página */
+  overscroll-behavior-y: none;
+  /* Red de seguridad contra desbordamientos: una palabra larga (un nombre de
+     ejercicio, un correo...) se parte en lugar de ensanchar la pantalla */
+  overflow-wrap: anywhere;
+  /* Nunca scroll horizontal de la página entera */
+  overflow-x: clip;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+img,
+video,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+/* Las barras de scroll no deben robar ancho en móvil */
+@media (pointer: coarse) {
+  * {
+    scrollbar-width: none;
+  }
+}
+}
+
+/* Las zonas laterales respetan el notch en horizontal (iPhone girado) */
+@layer components {
+  .safe-x {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* ------------------------------------------------------------------------
+   Botones: una familia coherente. Altura táctil ≥ 44 px, esquinas y foco
+   iguales, y nada de selección de texto ni zoom por doble toque.
+   ------------------------------------------------------------------------ */
+
+@layer base {
+button,
+[role="button"],
+select,
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline-offset: 0;
+}
+
+/* Botones de solo icono que el dedo no acierta: se amplía la zona de toque unos
+   píxeles sin cambiar su aspecto (en pantallas táctiles). :where() = sin
+   especificidad, para no pisar ninguna clase de posición (absolute, fixed...). */
+@media (pointer: coarse) {
+  :where(button:has(> svg:only-child)) {
+    position: relative;
+  }
+  :where(button:has(> svg:only-child))::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+}
+
+/* Fila con scroll horizontal: se difumina el borde derecho para que se vea que sigue */
+.scroll-fade-x {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.75rem), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 1.75rem), transparent);
+  padding-right: 1.75rem;
+  scrollbar-width: none;
+}
+.scroll-fade-x::-webkit-scrollbar {
+  display: none;
+}
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem; /* 44 px a tamaño normal */
+    padding: 0.5rem 1rem;
+    border-radius: 0.875rem;
+    border: 1px solid transparent;
+    font-size: 0.875rem;
+    line-height: 1.2;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease, opacity 120ms ease;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+  }
+  .btn > svg {
+    flex-shrink: 0;
+    width: 1.1em;
+    height: 1.1em;
+  }
+  .btn-primary {
+    background-color: #2563eb;
+    color: #fff;
+    box-shadow: 0 6px 16px -6px rgb(37 99 235 / 0.55);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: #1d4ed8;
+  }
+  .btn-secondary {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: #263449;
+    border-color: #475569;
+  }
+  .btn-ghost {
+    background-color: transparent;
+    color: #94a3b8;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background-color: #1e293b;
+    color: #e2e8f0;
+  }
+  .btn-success {
+    background-color: #059669;
+    color: #fff;
+  }
+  .btn-success:hover:not(:disabled) {
+    background-color: #047857;
+  }
+  .btn-danger {
+    background-color: rgb(225 29 72 / 0.12);
+    border-color: rgb(244 63 94 / 0.4);
+    color: #fda4af;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: rgb(225 29 72 / 0.22);
+  }
+  .btn-lg {
+    min-height: 3.25rem;
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    border-radius: 1rem;
+  }
+  .btn-sm {
+    min-height: 2.25rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    border-radius: 0.75rem;
+  }
+  /* Botón solo de icono: cuadrado de 44 px */
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    border-radius: 0.875rem;
+    border: 1px solid #1e293b;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+  .icon-btn:hover {
+    background-color: #1e293b;
+    color: #e2e8f0;
+  }
 }

@@ -6,13 +6,19 @@ export type MuscleZone =
   | 'biceps' | 'triceps' | 'forearm'
   | 'abs' | 'obliques'
   | 'lats' | 'mid-back' | 'lower-back'
-  | 'quadriceps' | 'hamstrings' | 'glutes' | 'calves';
+  | 'quadriceps' | 'hamstrings' | 'glutes' | 'calves'
+  // Zonas del catálogo importado que antes no existían
+  | 'trapezius' | 'serratus' | 'adductors' | 'abductors'
+  | 'neck' | 'full-body' | 'cardio';
 
 // Una imagen fija por zona (no una silueta genérica por grupo muscular
 // completo), para que dos ejercicios del mismo grupo que trabajan porciones
 // distintas (ej. "Press inclinado" vs. "Cruces en polea baja", ambos Pecho)
 // muestren cada uno la zona exacta.
-export const MUSCLE_ZONE_IMAGE: Record<MuscleZone, string> = {
+// Solo las 18 zonas originales tienen imagen .webp propia. Las zonas nuevas se
+// dibujan con la silueta (ver components/MuscleZoneImage.tsx), así que aquí el
+// registro es parcial a propósito: tsc obliga a pasar por ese componente.
+export const MUSCLE_ZONE_IMAGE: Partial<Record<MuscleZone, string>> = {
   'upper-chest': '/muscle-anatomy/upper-chest.webp',
   'mid-chest': '/muscle-anatomy/mid-chest.webp',
   'lower-chest': '/muscle-anatomy/lower-chest.webp',
@@ -52,18 +58,40 @@ export const MUSCLE_ZONE_LABEL: Record<MuscleZone, string> = {
   hamstrings: 'Isquiotibiales',
   glutes: 'Glúteos',
   calves: 'Pantorrillas',
+  trapezius: 'Trapecio',
+  serratus: 'Serrato',
+  adductors: 'Aductores',
+  abductors: 'Abductores',
+  neck: 'Cuello',
+  'full-body': 'Cuerpo completo',
+  cardio: 'Cardio',
 };
 
 // Sub-músculos (zonas) que pertenecen a cada grupo muscular, en orden
 // anatómico lógico. Se usa para el filtro de segundo nivel de la biblioteca:
 // tras elegir un grupo, se ofrecen sus zonas concretas.
 export const MUSCLE_GROUP_ZONES: Record<Exercise['muscleGroup'], MuscleZone[]> = {
-  Pecho: ['upper-chest', 'mid-chest', 'lower-chest'],
-  Espalda: ['lats', 'mid-back', 'lower-back'],
-  Piernas: ['quadriceps', 'hamstrings', 'glutes', 'calves'],
-  Hombros: ['front-deltoid', 'lateral-deltoid', 'rear-deltoid'],
+  Pecho: ['upper-chest', 'mid-chest', 'lower-chest', 'serratus'],
+  Espalda: ['lats', 'mid-back', 'lower-back', 'trapezius'],
+  Piernas: ['quadriceps', 'hamstrings', 'glutes', 'calves', 'adductors', 'abductors'],
+  Hombros: ['front-deltoid', 'lateral-deltoid', 'rear-deltoid', 'trapezius'],
   Brazos: ['biceps', 'triceps', 'forearm'],
-  Abdomen: ['abs', 'obliques'],
+  Abdomen: ['abs', 'obliques', 'serratus'],
+  Cuello: ['neck'],
+  'Cuerpo completo': ['full-body'],
+  Cardio: ['cardio'],
+};
+
+// Grupo "natural" de cada zona, para clasificar cuando solo se conoce la zona.
+export const ZONE_PRIMARY_GROUP: Record<MuscleZone, Exercise['muscleGroup']> = {
+  'upper-chest': 'Pecho', 'mid-chest': 'Pecho', 'lower-chest': 'Pecho', serratus: 'Pecho',
+  'front-deltoid': 'Hombros', 'lateral-deltoid': 'Hombros', 'rear-deltoid': 'Hombros',
+  biceps: 'Brazos', triceps: 'Brazos', forearm: 'Brazos',
+  abs: 'Abdomen', obliques: 'Abdomen',
+  lats: 'Espalda', 'mid-back': 'Espalda', 'lower-back': 'Espalda', trapezius: 'Espalda',
+  quadriceps: 'Piernas', hamstrings: 'Piernas', glutes: 'Piernas', calves: 'Piernas',
+  adductors: 'Piernas', abductors: 'Piernas',
+  neck: 'Cuello', 'full-body': 'Cuerpo completo', cardio: 'Cardio',
 };
 
 // Detecta la zona muscular exacta a partir del grupo muscular + palabras
@@ -76,6 +104,11 @@ export function detectMuscleZone(exercise: Exercise): MuscleZone {
   if (exercise.zone && exercise.zone in MUSCLE_ZONE_LABEL) {
     return exercise.zone as MuscleZone;
   }
+
+  // Grupos que no son un músculo concreto: su zona es la del propio grupo.
+  if (exercise.muscleGroup === 'Cuello') return 'neck';
+  if (exercise.muscleGroup === 'Cuerpo completo') return 'full-body';
+  if (exercise.muscleGroup === 'Cardio') return 'cardio';
 
   const n = exercise.name.toLowerCase();
 

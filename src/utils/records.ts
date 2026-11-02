@@ -75,6 +75,8 @@ export interface PrEvent {
   type: 'weight' | 'reps';
   value: number;
   previousValue: number;
+  // Ejercicio por tiempo: el récord de "reps" son segundos
+  hold?: boolean;
 }
 
 // Recorre todo el histórico en orden cronológico y genera un evento cada vez
@@ -128,6 +130,7 @@ export function computeAllTimeRecords(logs: WorkoutLog[], exercises: Exercise[])
             type: 'reps',
             value: sessionMaxReps,
             previousValue: prevReps,
+            hold: exercise.hold || undefined,
           });
         }
         bestReps[we.exerciseId] = sessionMaxReps;

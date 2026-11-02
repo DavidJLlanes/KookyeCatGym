@@ -17,6 +17,7 @@ $routes = [
     'users' => 'users.php',
     'users/role' => 'users.php',
     'progression-rules' => 'progression.php',
+    'user-data' => 'userdata.php',
     'push/key' => 'push.php',
     'push/subscribe' => 'push.php',
     'push/unsubscribe' => 'push.php',

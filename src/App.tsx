@@ -3,9 +3,9 @@ import * as api from './api/client';
 import AuthGate from './components/AuthGate';
 import { isAuthenticated, getStoredUser, clearSession, AuthUser } from './auth';
 import { LightboxProvider } from './context/LightboxContext';
+import { UserDataProvider } from './context/UserDataContext';
 import { LegalProvider } from './context/LegalContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
-import { I18nProvider } from './i18n';
 
 // El grueso de la app (paneles, catálogo de 873 ejercicios, gráficos...) se
 // carga en un chunk aparte, solo después de iniciar sesión — así la pantalla
@@ -41,7 +41,6 @@ export default function App() {
   };
 
   return (
-    <I18nProvider>
       <LegalProvider>
         <CookieConsentProvider>
           {!unlocked || !currentUser ? (
@@ -54,12 +53,13 @@ export default function App() {
           ) : (
             <LightboxProvider>
               <Suspense fallback={<div className="min-h-dvh bg-slate-950" />}>
-                <AppContent currentUser={currentUser} onLogout={handleLogout} />
+                <UserDataProvider userId={currentUser.id}>
+                  <AppContent currentUser={currentUser} onLogout={handleLogout} />
+                </UserDataProvider>
               </Suspense>
             </LightboxProvider>
           )}
         </CookieConsentProvider>
       </LegalProvider>
-    </I18nProvider>
   );
 }

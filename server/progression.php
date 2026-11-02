@@ -17,7 +17,7 @@ $pdo->exec("
     )
 ");
 
-const PROGRESSION_TYPES = ['linear', 'greyskull', 'double_progression'];
+const PROGRESSION_TYPES = ['linear', 'greyskull', 'double_progression', 'triple'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // GET reglas del usuario autenticado
@@ -53,6 +53,10 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($data['weightIncrement'])) $rule['weightIncrement'] = (float) $data['weightIncrement'];
     if (isset($data['targetReps'])) $rule['targetReps'] = (int) $data['targetReps'];
     if (isset($data['repIncrement'])) $rule['repIncrement'] = (int) $data['repIncrement'];
+    // Triple progresión: rango de repeticiones y de series
+    if (isset($data['minReps'])) $rule['minReps'] = (int) $data['minReps'];
+    if (isset($data['minSets'])) $rule['minSets'] = (int) $data['minSets'];
+    if (isset($data['maxSets'])) $rule['maxSets'] = (int) $data['maxSets'];
 
     $stmt = $pdo->prepare("
         INSERT INTO progression_rules (user_id, exercise_id, rule, updated_at)

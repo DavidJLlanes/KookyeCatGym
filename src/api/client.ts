@@ -514,3 +514,12 @@ export async function saveProgressionRule(rule: ProgressionRule) {
 export async function deleteProgressionRule(exerciseId: string) {
   return apiCall('progression-rules', { method: 'DELETE', body: { exerciseId } });
 }
+
+// --- USER DATA (peso corporal, objetivo, rotación, pilas de peso...) ---
+export async function getUserData(): Promise<Record<string, unknown>> {
+  return apiCall<Record<string, unknown>>('user-data');
+}
+
+export async function saveUserData(key: string, value: unknown) {
+  return apiCall('user-data', { method: 'POST', body: { key, value } });
+}

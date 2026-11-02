@@ -1,8 +1,12 @@
 import { WorkoutLog, Exercise } from '../types';
 import { detectMuscleZone, MuscleZone } from './muscleZone';
+import { MUSCLE_GROUPS, type MuscleGroup } from '../data/exerciseMeta';
+import { setVolume } from './holdSets';
+
+export type { MuscleGroup };
 
 // Músculos de la silueta (bodyPaths.ts) que recibe cada zona de ejercicio.
-const ZONE_TO_BODY: Record<MuscleZone, string[]> = {
+export const ZONE_TO_BODY: Record<MuscleZone, string[]> = {
   'upper-chest': ['chest'],
   'mid-chest': ['chest'],
   'lower-chest': ['chest'],
@@ -21,6 +25,14 @@ const ZONE_TO_BODY: Record<MuscleZone, string[]> = {
   hamstrings: ['hamstring'],
   glutes: ['gluteal'],
   calves: ['calves'],
+  trapezius: ['trapezius'],
+  serratus: ['serratus'],
+  adductors: ['adductors'],
+  // La silueta no tiene un trazo propio para los abductores: es el glúteo medio.
+  abductors: ['gluteal'],
+  neck: ['neck'],
+  'full-body': [],
+  cardio: [],
 };
 
 export const BODY_PART_GROUP: Record<string, MuscleGroup> = {
@@ -42,6 +54,7 @@ export const BODY_PART_GROUP: Record<string, MuscleGroup> = {
   adductors: 'Piernas',
   tibialis: 'Piernas',
   'hip-flexors': 'Piernas',
+  neck: 'Cuello',
 };
 
 export const BODY_PART_LABEL: Record<string, string> = {
@@ -63,7 +76,22 @@ export const BODY_PART_LABEL: Record<string, string> = {
   adductors: 'Aductores',
   tibialis: 'Tibial',
   'hip-flexors': 'Flexores de cadera',
+  neck: 'Cuello',
 };
+
+// Las series de los músculos secundarios cuentan menos que las de los principales.
+export const SECONDARY_WEIGHT = 0.5;
+
+/**
+ * Partes de la silueta que trabaja un ejercicio. El catálogo importado trae
+ * sus músculos principales y secundarios; los ejercicios antiguos (o los
+ * personalizados) se deducen de su zona, como siempre.
+ */
+export function bodyPartsOf(ex: Exercise): { primary: string[]; secondary: string[] } {
+  const bp = ex.bodyParts;
+  if (bp && (bp.primary.length > 0 || bp.secondary.length > 0)) return bp;
+  return { primary: ZONE_TO_BODY[detectMuscleZone(ex)], secondary: [] };
+}
 
 /**
  * Series efectivas (completadas, sin calentamiento) por músculo de la silueta en
@@ -86,8 +114,11 @@ export function calculateBodyLoad(
       if (!ex) continue;
       const sets = we.sets.filter((s) => s.completed && !s.isWarmup).length;
       if (sets === 0) continue;
-      for (const part of ZONE_TO_BODY[detectMuscleZone(ex)]) {
-        load[part] = (load[part] || 0) + sets;
+      const { primary, secondary } = bodyPartsOf(ex);
+      for (const part of primary) load[part] = (load[part] || 0) + sets;
+      // Un músculo que ya es principal no suma además como secundario.
+      for (const part of secondary) {
+        if (!primary.includes(part)) load[part] = (load[part] || 0) + sets * SECONDARY_WEIGHT;
       }
     }
   }
@@ -102,10 +133,6 @@ export interface MuscleGroupStats {
   daysSinceLastWorkout?: number;
   status: 'high' | 'medium' | 'low' | 'none';
 }
-
-export type MuscleGroup = 'Pecho' | 'Espalda' | 'Piernas' | 'Hombros' | 'Brazos' | 'Abdomen';
-
-const MUSCLE_GROUPS: MuscleGroup[] = ['Pecho', 'Espalda', 'Piernas', 'Hombros', 'Brazos', 'Abdomen'];
 
 function cutoffDate(daysLookback: number | null): Date | null {
   if (daysLookback === null) return null;
@@ -155,7 +182,7 @@ export function calculateMuscleStats(
       let completedSets = 0;
       for (const set of exercise.sets) {
         if (set.completed) {
-          exerciseVolume += set.weight * set.reps;
+          exerciseVolume += setVolume(set.weight, set.reps, ex);
           completedSets += 1;
         }
       }
@@ -230,4 +257,107 @@ export function getIntensityRecommendation(daysSince?: number): string {
   if (daysSince === 1) return 'Baja intensidad';
   if (daysSince < 3) return 'Intensidad moderada';
   return 'Puedes entrenar duro';
+}
+
+// ---------------------------------------------------------------------------
+// Mapa muscular: recuperación y músculos sin entrenar
+// ---------------------------------------------------------------------------
+
+export interface PartStatus {
+  /** 0 = nada que señalar; 1-4 = de menos a más intenso. */
+  level: number;
+  /** Texto corto para el aviso al pasar el cursor. */
+  text: string;
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+
+interface PartLastSession {
+  at: number; // ms de la última sesión que trabajó esa parte
+  stimulus: number; // series efectivas (secundarios a media) de esa sesión
+}
+
+/** Última sesión de cada parte de la silueta y cuánto estímulo recibió en ella. */
+function lastSessionByPart(logs: WorkoutLog[], exercises: Exercise[]): Map<string, PartLastSession> {
+  const byId = new Map(exercises.map((e) => [e.id, e]));
+  const last = new Map<string, PartLastSession>();
+
+  for (const log of logs) {
+    const at = new Date(log.date).getTime();
+    if (!Number.isFinite(at)) continue;
+    const inSession: Record<string, number> = {};
+    for (const we of log.exercises) {
+      const ex = byId.get(we.exerciseId);
+      if (!ex) continue;
+      const sets = we.sets.filter((s) => s.completed && !s.isWarmup).length;
+      if (sets === 0) continue;
+      const { primary, secondary } = bodyPartsOf(ex);
+      for (const p of primary) inSession[p] = (inSession[p] || 0) + sets;
+      for (const p of secondary) if (!primary.includes(p)) inSession[p] = (inSession[p] || 0) + sets * SECONDARY_WEIGHT;
+    }
+    for (const [part, stimulus] of Object.entries(inSession)) {
+      const prev = last.get(part);
+      if (!prev || at > prev.at) last.set(part, { at, stimulus });
+    }
+  }
+  return last;
+}
+
+/**
+ * Horas que tarda en recuperarse una parte tras una sesión: 44 h con una serie,
+ * subiendo 8 h por serie efectiva hasta un tope de ~4 días (series 8+). Es una
+ * regla práctica, no fisiología exacta: más series, más descanso.
+ */
+export function recoveryHoursFor(stimulus: number): number {
+  return 36 + 8 * Math.min(Math.max(stimulus, 1), 8);
+}
+
+function formatHours(h: number): string {
+  if (h < 24) return `${Math.max(1, Math.round(h))} h`;
+  const d = Math.round(h / 24);
+  return d === 1 ? '1 día' : `${d} días`;
+}
+
+/**
+ * "Qué sigue recuperándose": para cada parte entrenada hace menos de su tiempo
+ * de recuperación, un nivel 1-4 según lo que queda (4 = recién machacada).
+ * Las partes ya recuperadas no aparecen en el resultado.
+ */
+export function calculateRecovery(logs: WorkoutLog[], exercises: Exercise[], now: number = Date.now()): Record<string, PartStatus> {
+  const out: Record<string, PartStatus> = {};
+  for (const [part, { at, stimulus }] of lastSessionByPart(logs, exercises)) {
+    if (!(part in BODY_PART_GROUP)) continue;
+    const total = recoveryHoursFor(stimulus);
+    const elapsed = Math.max(0, (now - at) / HOUR_MS);
+    const left = total - elapsed;
+    if (left <= 0) continue;
+    const fraction = left / total; // 1 = recién entrenada, 0 = recuperada
+    out[part] = {
+      level: Math.min(4, Math.max(1, Math.ceil(fraction * 4))),
+      text: `se recupera en ~${formatHours(left)}`,
+    };
+  }
+  return out;
+}
+
+export const UNTRAINED_WARN_DAYS = 7;
+
+/**
+ * "Qué se ha quedado sin entrenar": las partes que llevan una semana o más sin
+ * trabajarse (o que nunca se han trabajado). Nivel 1 (7-13 días) a 4 (28+ o nunca).
+ */
+export function calculateUntrained(logs: WorkoutLog[], exercises: Exercise[], now: number = Date.now()): Record<string, PartStatus> {
+  const last = lastSessionByPart(logs, exercises);
+  const out: Record<string, PartStatus> = {};
+  for (const part of Object.keys(BODY_PART_GROUP)) {
+    const seen = last.get(part);
+    if (!seen) {
+      out[part] = { level: 4, text: 'sin entrenar nunca' };
+      continue;
+    }
+    const days = Math.floor((now - seen.at) / (24 * HOUR_MS));
+    if (days < UNTRAINED_WARN_DAYS) continue;
+    out[part] = { level: Math.min(4, 1 + Math.floor((days - UNTRAINED_WARN_DAYS) / 7)), text: `hace ${days} días` };
+  }
+  return out;
 }

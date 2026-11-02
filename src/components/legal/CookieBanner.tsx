@@ -65,33 +65,33 @@ export default function CookieBanner({ visible, startExpanded, initialAnalytics,
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-          className="fixed inset-x-0 bottom-0 z-[110] p-3 sm:p-4"
-          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+          className="fixed inset-x-0 bottom-0 z-[110] p-2.5 sm:p-4"
+          style={{ paddingBottom: 'calc(0.625rem + env(safe-area-inset-bottom))', paddingLeft: 'max(0.625rem, env(safe-area-inset-left))', paddingRight: 'max(0.625rem, env(safe-area-inset-right))' }}
+          role="dialog"
+          aria-label="Uso de cookies y almacenamiento local"
         >
-          <div className="max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80dvh]">
+          <div className="max-w-3xl mx-auto bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[70dvh]">
             {/* Contenido desplazable: nunca empuja ni recorta los botones de acción de abajo */}
             <div className="overflow-y-auto">
-              <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4">
-                <div className="h-10 w-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0">
-                  <Cookie className="h-5 w-5 text-blue-400" />
+              <div className="p-4 space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0">
+                    <Cookie className="h-4 w-4 text-blue-400" aria-hidden="true" />
+                  </div>
+                  <h3 className="text-sm font-extrabold text-slate-100 leading-tight">Cookies y almacenamiento local</h3>
                 </div>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <h3 className="text-sm font-extrabold text-slate-100">Uso de cookies y almacenamiento local</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Utilizamos almacenamiento estrictamente necesario para que KookyeCatGym funcione (mantener tu sesión y tu
-                    entrenamiento activo). Con tu permiso, en el futuro podríamos usar también cookies analíticas para
-                    mejorar la aplicación. Puedes aceptarlas, rechazarlas o personalizar tu elección. Más información en
-                    nuestra{' '}
-                    <button
-                      type="button"
-                      onClick={() => openLegal('privacidad')}
-                      className="underline text-blue-400 hover:text-blue-300 cursor-pointer"
-                    >
-                      Política de Privacidad
-                    </button>
-                    .
-                  </p>
-                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Usamos almacenamiento estrictamente necesario para que KookyeCatGym funcione (tu sesión y tu entrenamiento activo). Con tu
+                  permiso, en el futuro podríamos usar cookies analíticas. Más información en nuestra{' '}
+                  <button
+                    type="button"
+                    onClick={() => openLegal('privacidad')}
+                    className="underline text-blue-400 hover:text-blue-300 cursor-pointer"
+                  >
+                    Política de Privacidad
+                  </button>
+                  .
+                </p>
               </div>
 
               <AnimatePresence>
@@ -149,37 +149,21 @@ export default function CookieBanner({ visible, startExpanded, initialAnalytics,
               </AnimatePresence>
             </div>
 
-            <div className="p-4 sm:p-5 pt-2 flex flex-col sm:flex-row gap-2 sm:justify-end shrink-0 border-t border-slate-800/70">
+            <div className="p-3 sm:p-4 grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:justify-end shrink-0 border-t border-slate-800/70">
               {!expanded && (
-                <button
-                  type="button"
-                  onClick={() => setExpanded(true)}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer order-1 sm:order-none"
-                >
+                <button type="button" onClick={() => setExpanded(true)} className="btn btn-ghost btn-sm col-span-2 sm:col-span-1 sm:order-1">
                   Personalizar
                 </button>
               )}
-              <button
-                type="button"
-                onClick={rejectAll}
-                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer order-2 sm:order-none"
-              >
+              <button type="button" onClick={rejectAll} className="btn btn-secondary sm:order-2">
                 Rechazar todas
               </button>
               {expanded ? (
-                <button
-                  type="button"
-                  onClick={savePreferences}
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/10 cursor-pointer order-3 sm:order-none"
-                >
+                <button type="button" onClick={savePreferences} className="btn btn-primary sm:order-3">
                   Guardar preferencias
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={acceptAll}
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/10 cursor-pointer order-3 sm:order-none"
-                >
+                <button type="button" onClick={acceptAll} className="btn btn-primary sm:order-3">
                   Aceptar todas
                 </button>
               )}

@@ -1,15 +1,26 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ClipboardList, Plus, Play, Trash2, Edit, Dumbbell, Clock, X, ChevronRight, Check, ChevronUp, ChevronDown, Folder, FolderOpen, FolderPlus, Link2, Link2Off } from 'lucide-react';
+import { ClipboardList, Share2, Plus, Play, Trash2, Edit, Dumbbell, Clock, X, ChevronRight, Check, ChevronUp, ChevronDown, Folder, FolderOpen, FolderPlus, Link2, Link2Off } from 'lucide-react';
 import { Routine, Exercise, WorkoutExercise, WorkoutSet } from '../types';
 import ExerciseLibraryPanel from './ExerciseLibraryPanel';
 import DecimalInput from './DecimalInput';
 import ConfirmDialog from './ConfirmDialog';
 import { useLightbox } from '../context/LightboxContext';
 import { getStaticThumbUrl } from '../utils/media';
-import { SET_KINDS, SetKind, kindOf, withKind, setLabel, supersetLetters, toggleSupersetWithNext, normalizeSupersets } from '../utils/setTypes';
+import { repsColumnLabel, defaultReps, isCardio, isHold, looksUnilateral } from '../utils/holdSets';
+import DurationInput from './DurationInput';
+import { SET_KINDS, SetKind, kindOf, withKind, setLabel, supersetLetters, toggleSupersetWithNext, normalizeSupersets, groupName } from '../utils/setTypes';
 import AnchoredPopover from './AnchoredPopover';
 import SetKindMenu from './SetKindMenu';
+import StarterPlansModal from './StarterPlansModal';
+import SharePlanModal from './SharePlanModal';
+import RotationSettings from './RotationSettings';
+import RestTimePicker from './RestTimePicker';
+import ExerciseQuickPick from './ExerciseQuickPick';
+import WeightStackEditor from './WeightStackEditor';
+import { cleanAlternatives, MAX_ALTERNATIVES } from '../utils/exerciseSwap';
+import { formatRest } from '../utils/restTimes';
+import { buildPyramid, PyramidDirection } from '../utils/pyramid';
 
 interface RoutinesPanelProps {
   routines: Routine[];
@@ -21,6 +32,8 @@ interface RoutinesPanelProps {
   // panel al eliminar una carpeta entera con sus rutinas dentro).
   onDeleteRoutines: (routineIds: string[]) => void;
   onReorderRoutines: (updated: Routine[]) => void;
+  // Añade varias rutinas de una vez (planes de iniciación)
+  onAddRoutines: (routines: Routine[]) => void;
 }
 
 // Las carpetas se derivan de la propiedad `folder` de cada rutina, así que una
@@ -62,7 +75,7 @@ function ExerciseThumb({ ex }: { ex?: Exercise }) {
           referrerPolicy="no-referrer"
           onClick={(e) => {
             e.stopPropagation();
-            openLightbox(ex!.imageUrl, ex!.name);
+            openLightbox(ex!.imageUrl, ex!.name, ex!.videoUrl);
           }}
           className="w-full h-full object-contain cursor-zoom-in"
         />
@@ -102,7 +115,7 @@ function RoutineCard({ routine, exercises, onStart, onEdit, onDelete, onMoveUp, 
                   onClick={onMoveUp}
                   disabled={!canMoveUp}
                   title="Mover arriba"
-                  className="p-1 rounded-md bg-slate-950 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-slate-700 disabled:opacity-25 disabled:hover:text-slate-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-slate-700 disabled:opacity-25 disabled:hover:text-slate-400 transition-all cursor-pointer disabled:cursor-not-allowed"
                 >
                   <ChevronUp className="h-3.5 w-3.5" />
                 </button>
@@ -111,7 +124,7 @@ function RoutineCard({ routine, exercises, onStart, onEdit, onDelete, onMoveUp, 
                   onClick={onMoveDown}
                   disabled={!canMoveDown}
                   title="Mover abajo"
-                  className="p-1 rounded-md bg-slate-950 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-slate-700 disabled:opacity-25 disabled:hover:text-slate-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-slate-700 disabled:opacity-25 disabled:hover:text-slate-400 transition-all cursor-pointer disabled:cursor-not-allowed"
                 >
                   <ChevronDown className="h-3.5 w-3.5" />
                 </button>
@@ -246,7 +259,7 @@ function FolderSection({
   return (
     <div className="space-y-4">
       <div
-        className={`w-full flex items-center gap-2 bg-slate-900 border border-slate-800 ${accent.hoverBorder} rounded-2xl px-2 py-2 sm:px-2.5 sm:py-2.5 shadow-sm transition-all`}
+        className={`w-full flex flex-wrap items-center gap-2 bg-slate-900 border border-slate-800 ${accent.hoverBorder} rounded-2xl px-2 py-2 sm:px-2.5 sm:py-2.5 shadow-sm transition-all`}
       >
         {folderReorderable && (
           <div className="flex flex-col gap-0.5 shrink-0">
@@ -255,7 +268,7 @@ function FolderSection({
               onClick={onMoveFolderUp}
               disabled={!canMoveFolderUp}
               title="Mover carpeta arriba"
-              className="p-1 rounded-md bg-slate-950 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-slate-700 disabled:opacity-25 disabled:hover:text-slate-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+              className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-slate-700 disabled:opacity-25 disabled:hover:text-slate-400 transition-all cursor-pointer disabled:cursor-not-allowed"
             >
               <ChevronUp className="h-3.5 w-3.5" />
             </button>
@@ -264,7 +277,7 @@ function FolderSection({
               onClick={onMoveFolderDown}
               disabled={!canMoveFolderDown}
               title="Mover carpeta abajo"
-              className="p-1 rounded-md bg-slate-950 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-slate-700 disabled:opacity-25 disabled:hover:text-slate-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+              className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-slate-700 disabled:opacity-25 disabled:hover:text-slate-400 transition-all cursor-pointer disabled:cursor-not-allowed"
             >
               <ChevronDown className="h-3.5 w-3.5" />
             </button>
@@ -273,7 +286,7 @@ function FolderSection({
         <button
           type="button"
           onClick={onToggle}
-          className="flex-1 min-w-0 flex items-center gap-3 text-left cursor-pointer group px-1.5 py-1 sm:px-2"
+          className="flex-1 min-w-[9.5rem] flex items-center gap-3 text-left cursor-pointer group px-1.5 py-1 sm:px-2"
         >
           <div className={`h-10 w-10 sm:h-11 sm:w-11 rounded-xl ${accent.badgeBg} border ${accent.badgeBorder} flex items-center justify-center shrink-0 transition-colors`}>
             {isCollapsed ? (
@@ -283,7 +296,7 @@ function FolderSection({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className={`font-extrabold text-white text-sm sm:text-base leading-tight truncate transition-colors ${accent.hoverText}`}>
+            <h3 className={`font-extrabold text-white text-sm sm:text-base leading-tight line-clamp-2 break-words transition-colors ${accent.hoverText}`}>
               {label}
             </h3>
             <span className="text-[11px] font-semibold text-slate-500">
@@ -335,7 +348,12 @@ export default function RoutinesPanel({
   onDeleteRoutine,
   onDeleteRoutines,
   onReorderRoutines,
+  onAddRoutines,
 }: RoutinesPanelProps) {
+  const [showStarterPlans, setShowStarterPlans] = useState(false);
+  const [showSharePlan, setShowSharePlan] = useState(false);
+  // Rueda de descanso abierta: de un ejercicio entero o de una serie concreta
+  const [restPicker, setRestPicker] = useState<{ instanceId: string; setId?: string } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
 
@@ -499,9 +517,9 @@ export default function RoutinesPanel({
   const handleSelectExercise = (exercise: Exercise) => {
     // Add exercise with standard 3 sets
     const defaultSets: WorkoutSet[] = [
-      { id: `set-${Date.now()}-1`, weight: 0, reps: 10, completed: false },
-      { id: `set-${Date.now()}-2`, weight: 0, reps: 10, completed: false },
-      { id: `set-${Date.now()}-3`, weight: 0, reps: 10, completed: false },
+      { id: `set-${Date.now()}-1`, weight: 0, reps: defaultReps(exercise), completed: false },
+      { id: `set-${Date.now()}-2`, weight: 0, reps: defaultReps(exercise), completed: false },
+      { id: `set-${Date.now()}-3`, weight: 0, reps: defaultReps(exercise), completed: false },
     ];
 
     const newWorkoutExercise: WorkoutExercise = {
@@ -509,6 +527,7 @@ export default function RoutinesPanel({
       exerciseId: exercise.id,
       sets: defaultSets,
       restTime: exercise.defaultRestTime,
+      ...(looksUnilateral(exercise.name) && !isHold(exercise) ? { perSide: true } : {}),
     };
 
     setSelectedWorkoutExercises([...selectedWorkoutExercises, newWorkoutExercise]);
@@ -567,7 +586,17 @@ export default function RoutinesPanel({
     );
   };
 
-  const handleUpdateSetValues = (instanceId: string, setId: string, field: 'weight' | 'reps', val: number) => {
+  const handleTogglePerSide = (instanceId: string) => {
+    setSelectedWorkoutExercises(
+      selectedWorkoutExercises.map((we) => {
+        if (we.id !== instanceId) return we;
+        const { perSide: _p, ...rest } = we;
+        return we.perSide ? rest : { ...rest, perSide: true };
+      })
+    );
+  };
+
+  const handleUpdateSetValues = (instanceId: string, setId: string, field: 'weight' | 'reps' | 'distance', val: number) => {
     setSelectedWorkoutExercises(
       selectedWorkoutExercises.map((we) => {
         if (we.id !== instanceId) return we;
@@ -586,7 +615,50 @@ export default function RoutinesPanel({
     setSelectedWorkoutExercises(
       selectedWorkoutExercises.map((we) => {
         if (we.id !== instanceId) return we;
-        return { ...we, restTime: Math.max(10, seconds) };
+        return { ...we, restTime: Math.max(0, seconds) };
+      })
+    );
+  };
+
+  // Ejercicios de repuesto (máquina ocupada): se editan por ejercicio de la rutina
+  const handleSetAlternatives = (instanceId: string, ids: string[]) => {
+    setSelectedWorkoutExercises(
+      selectedWorkoutExercises.map((we) => {
+        if (we.id !== instanceId) return we;
+        const clean = cleanAlternatives(we.exerciseId, ids);
+        const { alternativeIds: _old, ...rest } = we;
+        return clean.length > 0 ? { ...rest, alternativeIds: clean } : rest;
+      })
+    );
+  };
+
+  // Descanso propio de una serie (undefined = usa el del ejercicio)
+  const handleUpdateSetRest = (instanceId: string, setId: string, seconds: number | undefined) => {
+    setSelectedWorkoutExercises(
+      selectedWorkoutExercises.map((we) => {
+        if (we.id !== instanceId) return we;
+        return {
+          ...we,
+          sets: we.sets.map((s) => {
+            if (s.id !== setId) return s;
+            const { restTime: _old, ...rest } = s;
+            return seconds === undefined ? rest : { ...rest, restTime: seconds };
+          }),
+        };
+      })
+    );
+  };
+
+  // Convierte las series del ejercicio en una pirámide a partir de la primera
+  const handlePyramid = (instanceId: string, direction: PyramidDirection, defaultRest: number) => {
+    setSelectedWorkoutExercises(
+      selectedWorkoutExercises.map((we) => {
+        if (we.id !== instanceId) return we;
+        const base = we.sets.find((s) => !s.isWarmup) ?? we.sets[0];
+        if (!base) return we;
+        const warmups = we.sets.filter((s) => s.isWarmup);
+        const pyramid = buildPyramid(base, we.restTime ?? defaultRest, direction, Math.max(3, Math.min(5, we.sets.length - warmups.length || 4)));
+        return { ...we, sets: [...warmups, ...pyramid] };
       })
     );
   };
@@ -628,35 +700,37 @@ export default function RoutinesPanel({
             className="space-y-6"
           >
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-                  <ClipboardList className="h-6 w-6 text-blue-400" />
-                  Tus Rutinas de Entrenamiento
+            <div className="space-y-4">
+              <div className="min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-start gap-2 leading-tight">
+                  <ClipboardList className="h-6 w-6 shrink-0 text-blue-400 mt-0.5" />
+                  <span className="min-w-0">Tus Rutinas de Entrenamiento</span>
                 </h2>
-                <p className="text-sm text-slate-400">
+                <p className="mt-1 text-sm text-slate-400">
                   Crea y personaliza un número ilimitado de rutinas para diferentes días de la semana.
                 </p>
               </div>
-              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto shrink-0">
-                <button
-                  id="btn-create-folder"
-                  onClick={() => setShowNewFolderModal(true)}
-                  className="flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-blue-400 border border-slate-800 hover:border-blue-500/40 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap"
-                >
-                  <FolderPlus className="h-4 w-4 sm:h-4.5 sm:w-4.5 shrink-0" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button id="btn-create-routine" onClick={startNewRoutineCreation} className="btn btn-primary col-span-2 sm:col-span-1 sm:order-4">
+                  <Plus />
+                  Nueva Rutina
+                </button>
+                <button id="btn-create-folder" onClick={() => setShowNewFolderModal(true)} className="btn btn-secondary">
+                  <FolderPlus className="text-blue-400" />
                   Nueva Carpeta
                 </button>
-                <button
-                  id="btn-create-routine"
-                  onClick={startNewRoutineCreation}
-                  className="flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md shadow-blue-500/10 cursor-pointer whitespace-nowrap"
-                >
-                  <Plus className="h-4 w-4 sm:h-4.5 sm:w-4.5 shrink-0" />
-                  Nueva Rutina
+                <button id="btn-starter-plans" onClick={() => setShowStarterPlans(true)} className="btn btn-secondary">
+                  <Dumbbell className="text-emerald-400" />
+                  Planes de iniciación
+                </button>
+                <button id="btn-share-plan" onClick={() => setShowSharePlan(true)} className="btn btn-secondary col-span-2 sm:col-span-1">
+                  <Share2 className="text-sky-400" />
+                  Compartir / importar
                 </button>
               </div>
             </div>
+
+            {routines.length > 1 && <RotationSettings routines={routines} />}
 
             {/* Routines agrupadas por carpeta */}
             <div className="space-y-8">
@@ -916,7 +990,7 @@ export default function RoutinesPanel({
                       >
                         {supersetLetter && (
                           <div className="px-3 py-1 bg-violet-950/40 border-b border-violet-500/30 text-[10px] font-black uppercase tracking-wider text-violet-300">
-                            Superserie {supersetLetter} · sin descanso entre ejercicios del grupo
+                            {groupName(selectedWorkoutExercises, index)} {supersetLetter} · sin descanso entre ejercicios del grupo
                           </div>
                         )}
                         {/* Title Row */}
@@ -980,23 +1054,54 @@ export default function RoutinesPanel({
                           <div className="flex items-center gap-2 text-xs text-slate-400 pb-2 border-b border-dashed border-slate-800">
                             <Clock className="h-3.5 w-3.5 text-blue-400" />
                             <span>Descanso predeterminado:</span>
-                            <input
-                              type="number"
-                              min={10}
-                              max={600}
-                              value={we.restTime || ex.defaultRestTime}
-                              onChange={(e) => handleUpdateRestTime(we.id, parseInt(e.target.value) || 90)}
-                              className="w-14 px-1.5 py-0.5 bg-slate-950 border border-slate-800 rounded text-center font-bold text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            />
-                            <span>segundos</span>
+                            <button
+                              type="button"
+                              onClick={() => setRestPicker({ instanceId: we.id })}
+                              className="px-2 py-0.5 bg-slate-950 border border-slate-800 hover:border-blue-500/50 rounded text-center font-bold text-blue-400 cursor-pointer"
+                            >
+                              {formatRest(we.restTime ?? ex.defaultRestTime)}
+                            </button>
+                          </div>
+
+                          <WeightStackEditor exerciseId={we.exerciseId} />
+
+                          {/* Ejercicios de repuesto: si la máquina está ocupada, se cambia por uno de estos con un toque */}
+                          <div className="space-y-2 pb-2 border-b border-dashed border-slate-800">
+                            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                              <span>Si está ocupado, cambiar por:</span>
+                              {(we.alternativeIds ?? []).length === 0 && <span className="text-slate-600">nada (opcional)</span>}
+                              {(we.alternativeIds ?? []).map((altId) => (
+                                <span key={altId} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-lg bg-violet-950/40 border border-violet-500/30 text-violet-300 font-bold">
+                                  {exercises.find((e) => e.id === altId)?.name ?? altId}
+                                  <button
+                                    type="button"
+                                    aria-label="Quitar alternativa"
+                                    onClick={() => handleSetAlternatives(we.id, (we.alternativeIds ?? []).filter((x) => x !== altId))}
+                                    className="p-0.5 text-violet-300/70 hover:text-rose-300 cursor-pointer"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                            {(we.alternativeIds ?? []).length < MAX_ALTERNATIVES && (
+                              <ExerciseQuickPick
+                                exercises={exercises}
+                                exclude={[we.exerciseId, ...(we.alternativeIds ?? [])]}
+                                preferGroup={ex.muscleGroup}
+                                placeholder="Añadir un ejercicio de repuesto…"
+                                onPick={(alt) => handleSetAlternatives(we.id, [...(we.alternativeIds ?? []), alt.id])}
+                              />
+                            )}
                           </div>
 
                           {/* Sets Header */}
                           <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">
                             <span className="col-span-2 text-left">Serie</span>
-                            <span className="col-span-4">Peso de Ref (kg)</span>
-                            <span className="col-span-4">Reps de Ref</span>
-                            <span className="col-span-2">Eliminar</span>
+                            <span className="col-span-3">{isCardio(ex) ? 'Km' : 'Peso (kg)'}</span>
+                            <span className="col-span-3">{repsColumnLabel(ex, true, !!we.perSide)}</span>
+                            <span className="col-span-3">Descanso</span>
+                            <span className="col-span-1" />
                           </div>
 
                           {/* Sets Rows */}
@@ -1019,16 +1124,23 @@ export default function RoutinesPanel({
                                 </AnchoredPopover>
                               )}
                               
-                              <div className="col-span-4">
+                              <div className="col-span-3">
                                 <DecimalInput
-                                  value={set.weight}
+                                  value={isCardio(ex) ? set.distance ?? 0 : set.weight}
                                   placeholder="0"
-                                  onChange={(v) => handleUpdateSetValues(we.id, set.id, 'weight', v)}
+                                  onChange={(v) => handleUpdateSetValues(we.id, set.id, isCardio(ex) ? 'distance' : 'weight', v)}
                                   className="w-full text-center px-2 py-1.5 bg-slate-950 border border-slate-850 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-100"
                                 />
                               </div>
 
-                              <div className="col-span-4">
+                              <div className="col-span-3">
+                                {isCardio(ex) ? (
+                                  <DurationInput
+                                    value={set.reps}
+                                    onChange={(sec) => handleUpdateSetValues(we.id, set.id, 'reps', sec)}
+                                    className="w-full text-center px-2 py-1.5 bg-slate-950 border border-slate-850 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-100"
+                                  />
+                                ) : (
                                 <input
                                   type="number"
                                   min={1}
@@ -1037,9 +1149,23 @@ export default function RoutinesPanel({
                                   onChange={(e) => handleUpdateSetValues(we.id, set.id, 'reps', parseInt(e.target.value) || 0)}
                                   className="w-full text-center px-2 py-1.5 bg-slate-950 border border-slate-850 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-100"
                                 />
+                                )}
                               </div>
 
-                              <div className="col-span-2 flex justify-center">
+                              <button
+                                type="button"
+                                onClick={() => setRestPicker({ instanceId: we.id, setId: set.id })}
+                                title="Descanso de esta serie"
+                                className={`col-span-3 px-1 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer truncate ${
+                                  set.restTime !== undefined
+                                    ? 'bg-blue-950/40 border-blue-500/40 text-blue-300'
+                                    : 'bg-slate-950 border-slate-850 text-slate-500 hover:text-slate-300'
+                                }`}
+                              >
+                                {set.restTime !== undefined ? formatRest(set.restTime) : 'Igual'}
+                              </button>
+
+                              <div className="col-span-1 flex justify-center">
                                 <button
                                   type="button"
                                   disabled={we.sets.length <= 1}
@@ -1053,13 +1179,31 @@ export default function RoutinesPanel({
                           ))}
 
                           {/* Add Set Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleAddSet(we.id)}
-                            className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1 pt-1.5 cursor-pointer"
-                          >
-                            <Plus className="h-3 w-3" /> Añadir Serie
-                          </button>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleAddSet(we.id)}
+                              className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <Plus className="h-3 w-3" /> Añadir Serie
+                            </button>
+                            {!isHold(ex) && (
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePerSide(we.id)}
+                                aria-pressed={!!we.perSide}
+                                title="Contar las repeticiones por lado (zancadas, trabajo a una mano...)"
+                                className={`text-xs font-bold cursor-pointer ${we.perSide ? 'text-teal-300' : 'text-slate-500 hover:text-slate-300'}`}
+                              >
+                                {we.perSide ? '✓ Por lado' : 'Por lado'}
+                              </button>
+                            )}
+                            <span className="text-[11px] text-slate-500 flex items-center gap-2">
+                              Pirámide:
+                              <button type="button" onClick={() => handlePyramid(we.id, 'up', ex.defaultRestTime)} title="Cada serie con más peso y menos repeticiones" className="font-bold text-violet-300 hover:text-violet-200 cursor-pointer">▲ ascendente</button>
+                              <button type="button" onClick={() => handlePyramid(we.id, 'down', ex.defaultRestTime)} title="Empieza pesado y baja el peso subiendo repeticiones" className="font-bold text-violet-300 hover:text-violet-200 cursor-pointer">▼ descendente</button>
+                            </span>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1203,6 +1347,42 @@ export default function RoutinesPanel({
         onConfirm={confirmDeleteFolder}
         onCancel={() => setFolderToDelete(null)}
       />
+
+      {restPicker && (() => {
+        const we = selectedWorkoutExercises.find((x) => x.id === restPicker.instanceId);
+        const exInfo = exercises.find((e) => e.id === we?.exerciseId);
+        if (!we) return null;
+        const set = restPicker.setId ? we.sets.find((s) => s.id === restPicker.setId) : undefined;
+        const exerciseRest = we.restTime ?? exInfo?.defaultRestTime ?? 90;
+        return (
+          <RestTimePicker
+            title={set ? 'Descanso de esta serie' : 'Descanso del ejercicio'}
+            value={set ? set.restTime : we.restTime}
+            fallback={exerciseRest}
+            clearLabel={set ? 'Usar el del ejercicio' : undefined}
+            onSelect={(sec) => {
+              if (set) handleUpdateSetRest(we.id, set.id, sec);
+              else handleUpdateRestTime(we.id, sec);
+              setRestPicker(null);
+            }}
+            onClear={set ? () => { handleUpdateSetRest(we.id, set.id, undefined); setRestPicker(null); } : undefined}
+            onClose={() => setRestPicker(null)}
+          />
+        );
+      })()}
+
+      {showSharePlan && (
+        <SharePlanModal routines={routines} exercises={exercises} onImport={onAddRoutines} onClose={() => setShowSharePlan(false)} />
+      )}
+
+      {showStarterPlans && (
+        <StarterPlansModal
+          exercises={exercises}
+          existingFolders={existingFolders}
+          onAdd={onAddRoutines}
+          onClose={() => setShowStarterPlans(false)}
+        />
+      )}
     </div>
   );
 }

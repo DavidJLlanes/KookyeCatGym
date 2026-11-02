@@ -223,8 +223,9 @@ export default function BodyProgressSection({ photos, onUpload, onUpdate, onDele
     if (next) setNewMuscle(next);
   };
   const pickPart = (part: string) => {
-    const group = BODY_PART_GROUP[part] as ProgressMuscle | undefined;
-    if (group) selectMuscle(group);
+    // Las fotos de progreso solo existen para los 6 grupos clásicos (p. ej. el cuello no).
+    const group = BODY_PART_GROUP[part];
+    if (group && (PROGRESS_MUSCLES as string[]).includes(group)) selectMuscle(group as ProgressMuscle);
   };
 
   const visible = filter ? sorted.filter((p) => p.muscle === filter) : sorted;

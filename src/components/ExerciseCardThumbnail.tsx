@@ -2,7 +2,8 @@ import React from 'react';
 import { Exercise } from '../types';
 import { useLightbox } from '../context/LightboxContext';
 import { getStaticThumbUrl } from '../utils/media';
-import { detectMuscleZone, MUSCLE_ZONE_IMAGE, MUSCLE_ZONE_LABEL } from '../utils/muscleZone';
+import { detectMuscleZone } from '../utils/muscleZone';
+import MuscleZoneImage from './MuscleZoneImage';
 
 interface ExerciseCardThumbnailProps {
   exercise: Exercise;
@@ -26,7 +27,7 @@ export default function ExerciseCardThumbnail({ exercise, mode }: ExerciseCardTh
         referrerPolicy="no-referrer"
         onClick={(e) => {
           e.stopPropagation();
-          openLightbox(exercise.imageUrl, exercise.name);
+          openLightbox(exercise.imageUrl, exercise.name, exercise.videoUrl);
         }}
         className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 cursor-zoom-in"
       />
@@ -36,11 +37,8 @@ export default function ExerciseCardThumbnail({ exercise, mode }: ExerciseCardTh
   const zone = detectMuscleZone(exercise);
 
   return (
-    <img
-      src={MUSCLE_ZONE_IMAGE[zone]}
-      alt={MUSCLE_ZONE_LABEL[zone]}
-      loading="lazy"
-      decoding="async"
+    <MuscleZoneImage
+      zone={zone}
       className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
     />
   );

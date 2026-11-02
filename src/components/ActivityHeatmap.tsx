@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { HeatmapYear, getHeatmapColor, formatVolume } from '../utils/activityHeatmap';
+import ScrollRow from './ScrollRow';
 
 interface ActivityHeatmapProps {
   data: HeatmapYear;
@@ -51,7 +52,7 @@ export default function ActivityHeatmap({ data }: ActivityHeatmapProps) {
       </div>
 
       {/* Heatmap */}
-      <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 overflow-x-auto">
+      <ScrollRow fadeFrom="from-slate-950" className="rounded-lg border border-slate-800 bg-slate-950" scrollerClassName="p-4">
         <svg
           width={dayLabelWidth + data.weeks.length * (cellSize + cellSpacing) + 20}
           height={monthLabelHeight + 7 * (cellSize + cellSpacing) + 40}
@@ -141,7 +142,7 @@ export default function ActivityHeatmap({ data }: ActivityHeatmapProps) {
             });
           })}
         </svg>
-      </div>
+      </ScrollRow>
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
