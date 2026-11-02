@@ -466,7 +466,7 @@ export default function ProgressPanel({
       </div>
 
       {/* 0.5. Progress View Tabs */}
-      <ScrollRow scrollerClassName="flex gap-1 border-b border-slate-800 snap-x" scrollerProps={{ role: 'tablist', 'aria-label': 'Secciones de Progreso' }}>
+      <ScrollRow scrollerClassName="flex gap-2 py-1.5 px-0.5" scrollerProps={{ role: 'tablist', 'aria-label': 'Secciones de Progreso' }}>
         {[
           { id: 'overview', label: 'Resumen', icon: TrendingUp },
           { id: 'muscle', label: 'Músculos', icon: Map },
@@ -485,10 +485,10 @@ export default function ProgressPanel({
               role="tab"
               aria-selected={isActive}
               onClick={() => setProgressTab(tab.id as any)}
-              className={`snap-start px-3.5 min-h-[2.75rem] border-b-2 transition-colors flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+              className={`shrink-0 min-h-[2.5rem] px-4 rounded-full border flex items-center gap-2 text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
                 isActive
-                  ? 'border-blue-500 text-blue-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-300'
+                  ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/30'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-100 hover:border-slate-600'
               }`}
             >
               <Icon className="h-4 w-4" />
