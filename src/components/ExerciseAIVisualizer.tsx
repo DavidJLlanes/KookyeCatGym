@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Sparkles, Brain, Cpu, Activity, ShieldAlert, Zap } from 'lucide-react';
 import { Exercise } from '../types';
 import { detectMuscleZone } from '../utils/muscleZone';
-import MuscleZoneImage from './MuscleZoneImage';
+import MuscleZoneImage from './muscle/MuscleZoneImage';
 
 interface ExerciseAIVisualizerProps {
   exercise: Exercise;

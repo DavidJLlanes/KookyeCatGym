@@ -3,7 +3,7 @@ import { Exercise } from '../types';
 import { useLightbox } from '../context/LightboxContext';
 import { getStaticThumbUrl } from '../utils/media';
 import { detectMuscleZone } from '../utils/muscleZone';
-import MuscleZoneImage from './MuscleZoneImage';
+import MuscleZoneImage from './muscle/MuscleZoneImage';
 
 interface ExerciseCardThumbnailProps {
   exercise: Exercise;

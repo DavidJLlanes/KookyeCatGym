@@ -21,12 +21,12 @@ import { getLastPerformanceSets } from '../utils/lastPerformance';
 import { calculateAllBalances as calculateMuscleBalances } from '../utils/muscleBalance';
 import ShareCardModal from './ShareCardModal';
 import ConstancyCalendar from './ConstancyCalendar';
-import MuscleMapVisual, { MapMode } from './MuscleMapVisual';
+import MuscleMapVisual, { MapMode } from './muscle/MuscleMapVisual';
 import { isHold } from '../utils/holdSets';
 import OneRMChart from './OneRMChart';
 import ActivityHeatmap from './ActivityHeatmap';
 import ProgressionRulesPanel from './ProgressionRulesPanel';
-import MuscleBalanceReport from './MuscleBalanceReport';
+import MuscleBalanceReport from './muscle/MuscleBalanceReport';
 import AICoachPanel from './AICoachPanel';
 
 interface ProgressPanelProps {

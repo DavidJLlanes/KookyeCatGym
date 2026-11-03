@@ -89,3 +89,11 @@ export interface WorkoutLog {
   duration: number; // in seconds
   exercises: WorkoutExercise[];
 }
+
+/** Entrenamiento en curso: todavía no está en el historial, se guarda al finalizarlo. */
+export interface ActiveWorkout {
+  routineId?: string;
+  routineName: string;
+  startTime: string; // ISO
+  exercises: WorkoutExercise[];
+}

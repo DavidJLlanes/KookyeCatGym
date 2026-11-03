@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import BODY_PATHS, { BodyView } from '../data/bodyPaths';
-import { MUSCLE_GROUPS } from '../data/exerciseMeta';
+import BODY_PATHS from '../../data/bodyPaths';
+import { MUSCLE_GROUPS } from '../../data/exerciseMeta';
 import {
   MuscleGroupStats,
   BODY_PART_GROUP,
@@ -9,7 +9,9 @@ import {
   formatRecoveryStatus,
   getIntensityRecommendation,
   PartStatus,
-} from '../utils/muscleStats';
+} from '../../utils/muscleStats';
+import { BodySide } from './BodyFigure';
+import { LEVEL_FILL, RECOVERY_FILL, UNTRAINED_FILL } from './bodyPalette';
 
 export type MapMode = 'volume' | 'recovery' | 'untrained';
 
@@ -23,82 +25,6 @@ interface MuscleMapVisualProps {
   mode?: MapMode;
   // Para 'recovery' y 'untrained': nivel 1-4 y texto de cada parte.
   partStatus?: Record<string, PartStatus>;
-}
-
-// El cuello ya es interactivo (grupo "Cuello")
-const INERT = ['head', 'hair', 'hands', 'feet', 'knees', 'ankles'];
-
-const ACCENT = '#3b82f6';
-const MUSCLE_BASE = '#243044';
-const SILHOUETTE = '#334155';
-const SEAM = '#0f172a';
-
-function mix(a: string, b: string, t: number): string {
-  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
-  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
-  return '#' + pa.map((v, i) => Math.round(v * t + pb[i] * (1 - t)).toString(16).padStart(2, '0')).join('');
-}
-
-const palette = (accent: string) => [MUSCLE_BASE, mix(accent, MUSCLE_BASE, 0.32), mix(accent, MUSCLE_BASE, 0.56), mix(accent, MUSCLE_BASE, 0.78), accent];
-
-export const LEVEL_FILL = palette(ACCENT);
-// Recuperación en ámbar (cuanto más intenso, más reciente) y sin entrenar en rojo.
-export const RECOVERY_FILL = palette('#f59e0b');
-export const UNTRAINED_FILL = palette('#ef4444');
-
-export function levelOf(value: number, max: number): number {
-  if (!value || max <= 0) return 0;
-  return Math.max(1, Math.ceil((value / max) * 4));
-}
-
-// Silueta (frente o espalda) con los músculos coloreados por nivel. También la
-// usan las fotos de progreso físico (BodyProgressSection) para filtrar por músculo.
-export function BodySide({
-  view,
-  load,
-  max,
-  highlightGroup,
-  onHover,
-  onPick,
-  fills = LEVEL_FILL,
-}: {
-  view: BodyView;
-  load: Record<string, number>;
-  max: number;
-  fills?: string[];
-  highlightGroup?: string | null;
-  onHover: (part: string | null) => void;
-  onPick: (part: string) => void;
-}) {
-  const parts = Object.keys(view.p);
-  return (
-    <svg viewBox={view.vb} className="h-auto w-full max-h-[340px]" role="group">
-      {parts.filter((p) => INERT.includes(p)).map((part) =>
-        view.p[part].map((d, i) => (
-          <path key={part + i} d={d} fill={SILHOUETTE} stroke={SEAM} strokeWidth={2.5} strokeLinejoin="round" />
-        ))
-      )}
-      {parts.filter((p) => !INERT.includes(p)).map((part) => {
-        const selected = !!highlightGroup && BODY_PART_GROUP[part] === highlightGroup;
-        return view.p[part].map((d, i) => (
-          <path
-            key={part + i}
-            d={d}
-            fill={fills[levelOf(load[part], max)]}
-            stroke={selected ? '#e2e8f0' : SEAM}
-            strokeWidth={selected ? 6 : 2.5}
-            strokeLinejoin="round"
-            className="cursor-pointer transition-[fill] duration-300"
-            onMouseEnter={() => onHover(part)}
-            onMouseLeave={() => onHover(null)}
-            onClick={() => onPick(part)}
-          >
-            <title>{BODY_PART_LABEL[part] ?? part}</title>
-          </path>
-        ));
-      })}
-    </svg>
-  );
 }
 
 export default function MuscleMapVisual({ stats, load, selectedMuscle, onMuscleClick, mode = 'volume', partStatus }: MuscleMapVisualProps) {

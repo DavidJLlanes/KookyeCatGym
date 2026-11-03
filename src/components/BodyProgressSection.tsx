@@ -4,7 +4,8 @@ import { Ruler, ChevronDown, AlertCircle, ArrowRight, X, Images, CalendarDays, T
 import type { MediaItem, MediaTarget, ProgressMuscle } from '../api/client';
 import BODY_PATHS from '../data/bodyPaths';
 import { BODY_PART_GROUP } from '../utils/muscleStats';
-import { BodySide, LEVEL_FILL } from './MuscleMapVisual';
+import { BodySide } from './muscle/BodyFigure';
+import { LEVEL_FILL } from './muscle/bodyPalette';
 import PhotoCaptureButtons from './PhotoCaptureButtons';
 import PhotoTile from './PhotoTile';
 import {

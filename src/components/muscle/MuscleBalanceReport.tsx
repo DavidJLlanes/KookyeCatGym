@@ -1,5 +1,5 @@
 import React from 'react';
-import { MuscleBalance, getBalanceRecommendation, getBalanceStatusColor } from '../utils/muscleBalance';
+import { MuscleBalance, getBalanceRecommendation, getBalanceStatusColor } from '../../utils/muscleBalance';
 import { AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface MuscleBalanceReportProps {

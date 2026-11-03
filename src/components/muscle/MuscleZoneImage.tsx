@@ -1,15 +1,12 @@
 import React from 'react';
 import { Heart } from 'lucide-react';
-import BODY_PATHS, { BodyView } from '../data/bodyPaths';
-import { MuscleZone, MUSCLE_ZONE_IMAGE, MUSCLE_ZONE_LABEL } from '../utils/muscleZone';
-import { ZONE_TO_BODY } from '../utils/muscleStats';
+import BODY_PATHS, { BodyView } from '../../data/bodyPaths';
+import { MuscleZone, MUSCLE_ZONE_IMAGE, MUSCLE_ZONE_LABEL } from '../../utils/muscleZone';
+import { ZONE_TO_BODY } from '../../utils/muscleStats';
+import { ACCENT, INERT_PARTS, MUSCLE_BASE, SEAM, SILHOUETTE } from './bodyPalette';
 
-// Mismos colores que el mapa muscular (MuscleMapVisual).
-const ACCENT = '#3b82f6';
-const MUSCLE_BASE = '#243044';
-const SILHOUETTE = '#334155';
-const SEAM = '#0f172a';
-const INERT = ['head', 'hair', 'neck', 'hands', 'feet', 'knees', 'ankles'];
+// Aquí el cuello también es silueta: no tiene zona propia en las imágenes.
+const INERT = [...INERT_PARTS, 'neck'];
 
 // Qué cara de la silueta enseña cada zona nueva (las 18 originales usan su .webp).
 const ZONE_VIEW: Partial<Record<MuscleZone, 'front' | 'back' | 'both'>> = {

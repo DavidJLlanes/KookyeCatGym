@@ -4,7 +4,7 @@ import { Search, Info, Plus, Dumbbell, Clock, ChevronRight, X, Sparkles, Check, 
 import { Exercise, WorkoutLog } from '../types';
 import ExerciseHistoryModal from './ExerciseHistoryModal';
 import { MUSCLE_GROUPS, EQUIPMENT_TYPES, EXERCISE_CATEGORIES, getMuscleColor } from '../data/exerciseMeta';
-import MuscleZoneImage from './MuscleZoneImage';
+import MuscleZoneImage from './muscle/MuscleZoneImage';
 import ExerciseAIVisualizer from './ExerciseAIVisualizer';
 import ExerciseCardThumbnail from './ExerciseCardThumbnail';
 import { useLightbox } from '../context/LightboxContext';

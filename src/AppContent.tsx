@@ -27,7 +27,7 @@ import {
   Pencil
 } from 'lucide-react';
 
-import { Exercise, Routine, WorkoutLog, WorkoutExercise, WorkoutSet } from './types';
+import { ActiveWorkout, Exercise, Routine, WorkoutLog, WorkoutExercise, WorkoutSet } from './types';
 import { MUSCLE_GROUPS, EQUIPMENT_TYPES, getMuscleColor } from './data/exerciseMeta';
 import { DEFAULT_ROUTINES, DEFAULT_LOGS } from './data/seed';
 import * as api from './api/client';
@@ -55,13 +55,13 @@ import {
   MUSCLE_GROUP_ZONES,
   MUSCLE_ZONE_LABEL,
 } from './utils/muscleZone';
-import MuscleZoneImage from './components/MuscleZoneImage';
+import MuscleZoneImage from './components/muscle/MuscleZoneImage';
 import { remapWorkoutList, remapActiveWorkout, remapByExerciseId } from './utils/exerciseIds';
 import { deepEqual, mergeCollection, mergeRecord } from './utils/threeWayMerge';
 import { defaultReps, formatReps } from './utils/holdSets';
 
 import ExerciseLibraryPanel from './components/ExerciseLibraryPanel';
-import ActiveWorkoutPanel from './components/ActiveWorkoutPanel';
+import ActiveWorkoutPanel from './components/workout/ActiveWorkoutPanel';
 import WorkoutShareModal from './components/WorkoutShareModal';
 import PlateCalculatorModal from './components/PlateCalculatorModal';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -112,12 +112,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
     if (primaryByExercise.size === 0) return exercises;
     return exercises.map((e) => (primaryByExercise.has(e.id) ? { ...e, imageUrl: primaryByExercise.get(e.id)!, videoUrl: undefined } : e));
   }, [exercises, exerciseOnlyMedia]);
-  const [activeWorkout, setActiveWorkout] = useState<{
-    routineId?: string;
-    routineName: string;
-    startTime: string;
-    exercises: WorkoutExercise[];
-  } | null>(null);
+  const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
 
   // Celebration overlay state
   const [justFinishedWorkout, setJustFinishedWorkout] = useState<WorkoutLog | null>(null);
