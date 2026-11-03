@@ -25,7 +25,8 @@ kookyecatgym/
 
 > `user-data` guarda documentos JSON por clave sin tocar el servidor al añadir datos nuevos. Claves actuales:
 > `body-weights`, `body-goal`, `rotation`, `weight-stacks`, `favorites`, `my-equipment`, `week-start`,
-> `plan-moves`, `deload` y `program` (programa de varias semanas en marcha).
+> `plan-moves`, `deload`, `program` (programa de varias semanas en marcha) y las de Nutrición:
+> `nutrition-profile`, `nutrition-foods` y `nutrition-log`.
 
 ## 🌐 Despliegue en servidor
 
@@ -66,6 +67,10 @@ donde `<token>` es el token de sesión devuelto por `auth/login` o `auth/registe
 - `GET /api/user-data` - Tus datos propios como `{ clave: valor }`: peso corporal y objetivo, favoritos,
   equipamiento, rotación, plan semanal, semanas de descarga y pilas de pesas
 - `POST /api/user-data` - Guardar un documento (`key`, `value`; clave `a-z0-9_-`, máx. 1 MB)
+- `GET /api/coach/status` - Si hay IA configurada y cuántos análisis te quedan hoy
+- `POST /api/coach/analyze` - Análisis del Coach IA (asíncrono; se consulta con `GET /api/coach/history`)
+- `POST /api/coach/nutrition` - IA de Nutrición (`task`: `estimate`, `recipes`, `plan` o `analysis`, más su `input`).
+  Síncrona, respuesta validada en el servidor y límite de 40 peticiones por usuario en 24 h
 - `GET /api/active-workout` - Obtener tu entrenamiento activo
 - `POST /api/active-workout` - Guardar entrenamiento activo
 - `DELETE /api/active-workout` - Limpiar entrenamiento activo

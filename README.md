@@ -51,7 +51,7 @@
 | 💪 **Fuerza relativa con historial** | Tu 1RM de cada ejercicio como múltiplo y como % del peso corporal del día en que lo hiciste, con su evolución en el tiempo, el total levantado acumulado y objetivos ATG en % de tu peso. |
 | 🧭 **Balance estructural por fuentes** | Ratios entre levantamientos agrupados por origen, con su atribución en pantalla: Poliquin, clásicos (OPEX) y rangos generales. Ver [Balance estructural](#balance-estructural-y-sus-fuentes). |
 | 📅 **Constancia** | Calendario y mapa de actividad. |
-| 🤖 **IA para tus consejos** | Coach IA integrado con tu propia clave de API (OpenRouter, Gemini, Groq, Cerebras, Mistral, Anthropic, OpenAI o DeepSeek; OpenRouter y Gemini tienen opciones gratuitas), resumen para pegar en cualquier IA y un [servidor MCP](mcp/README.md) de solo lectura. |
+| 🤖 **IA para tus consejos** | Coach IA integrado con tu propia clave de API (OpenRouter, Gemini, Groq, Cerebras, Mistral, Anthropic, OpenAI o DeepSeek; OpenRouter y Gemini tienen opciones gratuitas), resumen para pegar en cualquier IA y un [servidor MCP](mcp/README.md) de solo lectura. La misma clave alimenta las herramientas de IA de Nutrición. |
 | 📤 **Tus datos, tuyos** | Exporta a CSV o JSON, importa desde Hevy, Strong o FitNotes, y comparte planes como archivo o PDF. |
 | 🧮 **Calculadoras de carga** | Calculadora de discos por lado según el material que tengas y editor de pilas de pesas por máquina. |
 | 🎬 **Tus propios medios** | Sustituye el vídeo o la foto de cualquier ejercicio por los tuyos, y añade fotos de progreso al calendario. |
@@ -132,6 +132,24 @@ Los **estándares ATG** (peso muerto rumano con barra al 100 % del peso corporal
 mancuernas al 33 % por mancuerna ×10 y gemelo a una pierna con mancuerna al 25 % ×10) provienen de la compilación
 de a1athlete.com a partir de Ben Patrick; no es una lista oficial.
 
+## Nutrición: cómo se calcula
+
+- **Metabolismo basal**: ecuación de Mifflin-St Jeor (10·peso + 6,25·altura − 5·edad, +5 hombres / −161 mujeres).
+- **Gasto diario**: metabolismo basal × factor de actividad (1,2 · 1,375 · 1,55 · 1,725 · 1,9).
+- **Objetivo de calorías**: gasto ± un ajuste según la meta (por defecto −15 % para perder grasa y +10 % para ganar
+  músculo; editable), con un suelo en tu metabolismo basal y, si quieres, una diferencia fija en días sin entreno.
+  Un día cuenta como de entreno si hay una sesión registrada ese día.
+- **Macros**: proteína por kg de peso (1,8 g/kg por defecto), grasa como % de las calorías (25 % por defecto) y el resto en hidratos.
+- **Alimentos**: unos 110 alimentos básicos con valores por 100 g, **aproximados** (varían por marca, cocinado y pieza),
+  escritos a mano para este proyecto; puedes añadir los tuyos.
+- **IA de Nutrición** (opcional, con la clave del Coach): recetas con los alimentos que indiques, estimar una comida
+  escrita, plan semanal con lista de la compra y análisis de la semana. El servidor valida el formato de cada respuesta,
+  tú revisas las cifras antes de guardarlas y hay un límite diario propio. Son estimaciones: no sustituyen a un
+  profesional sanitario.
+
+El plan por fases y lo pendiente (estimar desde foto, Open Food Facts, recordatorios…) está en
+[`docs/NUTRICION-PLAN.md`](docs/NUTRICION-PLAN.md).
+
 ## Requisitos
 
 - Node.js 18+ y npm
@@ -197,7 +215,7 @@ Las animaciones e imágenes de ejercicios pertenecen a sus creadores originales
 ## Créditos y licencias de terceros
 
 - Geometría del mapa muscular: adaptada de [MuscleMap](https://github.com/melihcolpan/MuscleMap) (MIT).
-- Todo lo añadido para este proyecto (programas, ratios, pegatina, comparador, mapa en la sesión) está escrito
+- Todo lo añadido para este proyecto (programas, ratios, pegatina, comparador, mapa en la sesión, nutrición) está escrito
   desde cero; no se ha copiado código de otras apps de entrenamiento cuyas licencias (GPL/AGPL) no son
   compatibles con la de este repositorio.
 
