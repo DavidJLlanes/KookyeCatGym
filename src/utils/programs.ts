@@ -1,5 +1,6 @@
 import type { Exercise, Routine, WorkoutExercise, WorkoutLog } from '../types';
 import { calculate1RM } from './oneRMEstimate';
+import { localDayKey } from './userData';
 
 // Programas de varias semanas: cada semana define series, repeticiones y % del
 // máximo de entrenamiento de los levantamientos principales; el resto de
@@ -84,7 +85,7 @@ export interface ProgramPosition {
 /** Dónde vas: se cuentan los entrenamientos guardados con el nombre del programa desde el inicio. */
 export function programPosition(program: Program, active: ActiveProgram, logs: WorkoutLog[]): ProgramPosition {
   const prefix = programPrefix(program);
-  const done = logs.filter((l) => l.routineName.startsWith(prefix) && l.date.slice(0, 10) >= active.startDate).length;
+  const done = logs.filter((l) => l.routineName.startsWith(prefix) && localDayKey(new Date(l.date)) >= active.startDate).length;
   const total = sessionsPerCycle(program);
   const idx = Math.min(done, total - 1);
   return { done, total, finished: done >= total, week: Math.floor(idx / program.days.length), day: idx % program.days.length };

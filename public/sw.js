@@ -135,9 +135,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => {
-          return caches.match(request) || new Response('Offline', { status: 503 });
-        })
+        .catch(() => caches.match(request).then((cached) => cached || new Response('Offline', { status: 503 })))
     );
     return;
   }

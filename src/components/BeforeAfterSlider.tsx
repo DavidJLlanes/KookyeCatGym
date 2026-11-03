@@ -37,7 +37,7 @@ export default function BeforeAfterSlider({ beforeUrl, afterUrl, beforeLabel, af
         value={pos}
         onChange={(e) => setPos(Number(e.target.value))}
         aria-label="Comparar antes y ahora"
-        className="absolute inset-0 h-full w-full opacity-0 cursor-ew-resize"
+        className="absolute inset-0 h-full w-full opacity-0 cursor-ew-resize touch-pan-y"
       />
     </div>
   );

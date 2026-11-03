@@ -23,10 +23,10 @@ export default function PhotoStickerEditor({ log, hasRecord }: Props) {
   const [photo, setPhoto] = useState<HTMLImageElement | null>(null);
   const [pos, setPos] = useState({ cx: 0.5, cy: 0.8 });
   const [scale, setScale] = useState(1);
-  const [dataUrl, setDataUrl] = useState('');
 
   useEffect(() => {
-    if (canvasRef.current) setDataUrl(renderStickerOnPhoto(canvasRef.current, { log, hasRecord, photo, ...pos, scale }));
+    // Solo se pinta: el PNG se genera al descargar o compartir, no en cada movimiento del dedo
+    if (canvasRef.current) renderStickerOnPhoto(canvasRef.current, { log, hasRecord, photo, ...pos, scale });
   }, [log, hasRecord, photo, pos, scale]);
 
   const onFile = (file: File | undefined) => {
@@ -104,13 +104,13 @@ export default function PhotoStickerEditor({ log, hasRecord }: Props) {
 
       <div className="flex gap-2.5">
         {canNativeShare() && (
-          <button type="button" onClick={() => canvasRef.current && shareCanvas(canvasRef.current, FILE, TITLE, dataUrl)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer">
+          <button type="button" onClick={() => canvasRef.current && shareCanvas(canvasRef.current, FILE, TITLE, canvasRef.current.toDataURL('image/png'))} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer">
             <Share2 className="h-3.5 w-3.5" /> Compartir
           </button>
         )}
         <button
           type="button"
-          onClick={() => canvasRef.current && dataUrl && saveImage(canvasRef.current, FILE, TITLE, dataUrl)}
+          onClick={() => canvasRef.current && saveImage(canvasRef.current, FILE, TITLE, canvasRef.current.toDataURL('image/png'))}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-bold cursor-pointer"
         >
           <Download className="h-3.5 w-3.5" /> Descargar

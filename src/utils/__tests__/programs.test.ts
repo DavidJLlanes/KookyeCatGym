@@ -71,3 +71,12 @@ describe('programas', () => {
     expect(bumpedMaxes({ '1436': 100, '0032': 120, '0025': 80 })).toEqual({ '1436': 105, '0032': 125, '0025': 82.5 });
   });
 });
+
+describe('programas y zonas horarias', () => {
+  it('cuenta un entrenamiento hecho de madrugada (hora local) el mismo día de inicio', () => {
+    // Un entrenamiento a las 00:30 locales en España es del día anterior en UTC
+    const local = new Date(2026, 10, 3, 0, 30); // 3 nov 00:30 hora local del sistema
+    const logs = [log('madrugada', local.toISOString(), [], sessionName(program, 0, 0))];
+    expect(programPosition(program, { ...active, startDate: '2026-11-03' }, logs).done).toBe(1);
+  });
+});

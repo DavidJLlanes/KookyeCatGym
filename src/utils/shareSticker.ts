@@ -118,13 +118,12 @@ function drawSticker(ctx: CanvasRenderingContext2D, { log, hasRecord, cx, cy, sc
   ctx.restore();
 }
 
-/** Dibuja foto + pegatina en el lienzo y devuelve el PNG como data URL. */
-export function renderStickerOnPhoto(canvas: HTMLCanvasElement, opts: StickerOpts): string {
+/** Dibuja foto + pegatina en el lienzo (el PNG se obtiene después con canvas.toDataURL). */
+export function renderStickerOnPhoto(canvas: HTMLCanvasElement, opts: StickerOpts): void {
   canvas.width = STICKER_W;
   canvas.height = STICKER_H;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
+  if (!ctx) return;
   drawBackground(ctx, opts.photo);
   drawSticker(ctx, opts);
-  return canvas.toDataURL('image/png');
 }
