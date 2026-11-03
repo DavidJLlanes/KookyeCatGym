@@ -1,4 +1,4 @@
-import { WorkoutLog, Routine, Exercise } from '../types';
+import { WorkoutLog, Exercise } from '../types';
 
 export type AIProvider = 'anthropic' | 'openai' | 'gemini';
 
@@ -53,7 +53,6 @@ export interface CoachAnalysis {
 export function prepareCoachData(
   logs: WorkoutLog[],
   exercises: Exercise[],
-  routines: Routine[],
   recentDays: number = 30
 ): CoachAnalysis {
   const cutoffDate = new Date();

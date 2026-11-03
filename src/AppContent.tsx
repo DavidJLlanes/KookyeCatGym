@@ -225,7 +225,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
           {currentTab === 'users' && isAdmin && (
             <TabTransition key="users-tab">
               <Suspense fallback={<TabLoadingFallback />}>
-                <UserManagementPanel currentUser={currentUser} exercises={exercises} />
+                <UserManagementPanel currentUser={currentUser} />
               </Suspense>
             </TabTransition>
           )}

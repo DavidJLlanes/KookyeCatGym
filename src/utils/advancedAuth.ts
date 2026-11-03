@@ -81,7 +81,6 @@ export function createDeviceLinkRequest(sourceDeviceId: string): DeviceLink {
  */
 export function verifyDeviceLink(
   link: DeviceLink,
-  targetDeviceId: string,
   verificationCode: string
 ): boolean {
   const isExpired = new Date(link.expiresAt) < new Date();

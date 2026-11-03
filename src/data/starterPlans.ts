@@ -37,7 +37,6 @@ const RDL = '0085'; // Peso muerto rumano con barra
 const ROW = '0027'; // Remo con barra inclinado
 const PULLUP = '0652'; // Dominadas
 const PULLDOWN = '0198'; // Jalón al pecho
-const CABLE_ROW = '1323'; // Remo sentado en polea con cuerda
 const FACE_PULL = '5609'; // Face pull de pie en polea
 const LEG_PRESS = '0739'; // Prensa de piernas a 45°
 const LEG_CURL = '0599'; // Curl de piernas sentado en máquina

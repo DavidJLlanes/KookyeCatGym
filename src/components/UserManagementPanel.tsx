@@ -4,14 +4,12 @@ import { Users, Plus, Trash2, ShieldCheck, Shield, X, Mail, User as UserIcon, Lo
 import * as api from '../api/client';
 import { AdminUserRow } from '../api/client';
 import { AuthUser } from '../auth';
-import { Exercise } from '../types';
 import ConfirmDialog from './ConfirmDialog';
 import ScrollRow from './ScrollRow';
 import { AdminStatsSection, AdminAuditSection, AdminSettingsSection } from './AdminSections';
 
 interface UserManagementPanelProps {
   currentUser: AuthUser;
-  exercises?: Exercise[];
 }
 
 type AdminTab = 'users' | 'stats' | 'audit' | 'settings';
@@ -23,7 +21,7 @@ const ADMIN_TABS: { id: AdminTab; label: string; icon: typeof Users }[] = [
   { id: 'settings', label: 'Ajustes', icon: Settings },
 ];
 
-export default function UserManagementPanel({ currentUser, exercises = [] }: UserManagementPanelProps) {
+export default function UserManagementPanel({ currentUser }: UserManagementPanelProps) {
   const [tab, setTab] = useState<AdminTab>('users');
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
