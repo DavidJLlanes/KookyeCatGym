@@ -40,8 +40,15 @@
 | 🏋️ **Rutinas a tu medida** | Más de 5.600 ejercicios con vídeo, rutinas en carpetas, superseries y circuitos, pirámides, descansos por serie, ejercicios de repuesto y planes de iniciación (PPL, torso/pierna, cuerpo completo, 5×5). |
 | 🔁 **Rotación y plan semanal** | Rotación de sesiones (A, B, C…) o días fijos; mueve una sesión de día solo esa semana y planifica semanas de descarga. |
 | 📝 **Registro de entrenamientos** | Series, repeticiones, peso, RPE, cardio por tiempo y distancia, reps por lado, deslizar para borrar o copiar series, y editar o registrar entrenamientos pasados. |
+| 🧱 **Tipos de serie** | Calentamiento, drop set, rest-pause y fallo, cada uno con su menú y su letra en la tabla de series. |
+| 🗂️ **Sesión en dos vistas** | Durante el entrenamiento alterna entre tarjetas (todas las series a la vista) y lista compacta (resumen y próxima serie); un único menú «⋯» por ejercicio con historial, repeticiones por lado, superserie, alternativas y quitar. |
+| ⏱️ **Ejercicios por tiempo que arrancan solos** | Planchas, colgados y demás ejercicios de mantener: «Cronometrar serie» da una cuenta atrás de preparación (5 s), cronometra el aguante, marca la serie sola y arranca el descanso; con «auto» encadena todas las series. |
+| 📋 **Programas de varias semanas** | Tres programas propios (fuerza en olas, cuerpo completo para hipertrofia y 5×5 lineal): apuntas tu máximo de entrenamiento y la app calcula la carga de cada sesión según la semana, con descarga incluida; cuando terminas, «repetir con más carga» sube los máximos. |
 | ⚖️ **Progresión** | Lineal, doble, Greyskull y triple (repeticiones → series → carga), con pila de pesas real de cada máquina. |
 | 📈 **Progreso visible** | 1RM estimado, historial de cada ejercicio, mapa muscular (volumen, recuperación, sin entrenar), peso corporal frente a un objetivo y fuerza relativa. |
+| 🗺️ **Mapa muscular por todas partes** | Mini mapa de lo que trabaja cada sesión en «Te toca», el plan semanal, las tarjetas de rutina y el editor (en directo mientras añades ejercicios); hoja de «Músculos de la sesión» con lo planeado frente a lo hecho; buscador de ejercicios tocando un músculo en la biblioteca; y «Por músculos»: tocas los que quieres trabajar y se arma la sesión con tu equipamiento, tus favoritos y lo que ya has hecho. |
+| 💪 **Fuerza relativa con historial** | Tu 1RM de cada ejercicio como múltiplo y como % del peso corporal del día en que lo hiciste, con su evolución en el tiempo, el total levantado acumulado y objetivos ATG en % de tu peso. |
+| 🧭 **Balance estructural por fuentes** | Ratios entre levantamientos agrupados por origen, con su atribución en pantalla: Poliquin, clásicos (OPEX) y rangos generales. Ver [Balance estructural](#balance-estructural-y-sus-fuentes). |
 | 📅 **Constancia** | Calendario y mapa de actividad. |
 | 🤖 **IA para tus consejos** | Coach IA integrado con tu propia clave de API (OpenRouter, Gemini, Groq, Cerebras, Mistral, Anthropic, OpenAI o DeepSeek; OpenRouter y Gemini tienen opciones gratuitas), resumen para pegar en cualquier IA y un [servidor MCP](mcp/README.md) de solo lectura. |
 | 📤 **Tus datos, tuyos** | Exporta a CSV o JSON, importa desde Hevy, Strong o FitNotes, y comparte planes como archivo o PDF. |
@@ -53,7 +60,8 @@
 | 🔀 **Sincronización entre dispositivos** | Fusión de cambios a tres vías, para que dos dispositivos editando a la vez no se pisen. |
 | ⚠️ **Avisos de datos raros** | Detección de anomalías en tus registros: marca valores que probablemente sean errores de tecleo. |
 | 🔠 **Accesible** | Tamaño de letra ajustable y diseño probado de 320 a 430 px de ancho. |
-| 🖼️ **Tarjetas para compartir** | Genera tarjetas de tus entrenamientos y resultados para redes. |
+| 🖼️ **Tarjetas para compartir** | Genera tarjetas de tus entrenamientos y resultados para redes, o pega el resumen como pegatina sobre una foto tuya (la arrastras, cambias su tamaño y exportas 1080×1350). |
+| 🔍 **Comparador de fotos** | Fotos de progreso por músculo con vista lado a lado o con un deslizador antes/después. |
 | 🧩 **Combinador de rutinas** | Combina varias rutinas en un mismo plan de días. |
 | 🛠️ **Administración** | Panel para administradores con estadísticas, registro de auditoría, ajustes y control de altas de usuarios. |
 | 🏠 **Tu propio servidor** | Aloja la app con React, PHP y SQLite, con soporte multiusuario. |
@@ -61,6 +69,43 @@
 > El repositorio incluye el catálogo de ejercicios con sus vídeos e imágenes
 > (`public/exercises/`, unos 190 MB) y las imágenes anatómicas por zona muscular
 > (ver [Imágenes](#imágenes)).
+
+## Estructura del código
+
+```
+src/
+├── AppContent.tsx            Orquestador de la app (pestañas, entrenamiento activo, guardado)
+├── components/
+│   ├── workout/              Entrenamiento en curso: panel, cabecera, tarjeta/lista, menú, tabla de series,
+│   │                         temporizadores de descanso y de series por tiempo
+│   ├── muscle/               Mapa muscular: silueta, mini mapa, explorador, balance, sesión por músculos
+│   ├── stats/                Fuerza relativa con historial y estándares ATG
+│   ├── programs/             Tarjeta del programa en marcha y selector de programas
+│   └── share/                Pegatina del entrenamiento sobre una foto
+├── hooks/                    Temporizadores, pantalla activa, preferencias locales
+├── utils/                    Lógica pura (sin React) y sus tests en utils/__tests__
+└── data/                     Catálogo, geometría del cuerpo, planes de iniciación y programas
+```
+
+Criterio: un componente por responsabilidad, la lógica que no necesita React en `utils/` como
+funciones puras (se prueban con `npm test`), y los efectos con temporizador en hooks.
+
+## Balance estructural y sus fuentes
+
+Los ratios se calculan con tu mejor 1RM estimado (Epley, series de hasta 12 repeticiones, últimos 6 meses)
+y solo se muestran cuando hay datos en ambos lados. Cada pestaña dice de dónde sale:
+
+- **Poliquin** (smartraining.substack.com, «basados en las enseñanzas de Poliquin»): pectoral = dorsal 1:1,
+  isquiotibiales ≈ 75 % del cuádriceps y bíceps ≈ 60-70 % del tríceps. El cuarto ratio de esa fuente
+  (rotadores externos/internos del hombro) no se calcula porque la biblioteca no tiene ejercicios comparables.
+  La fuente da el valor; el margen en torno a 1:1 (±10 %) y al 75 % (±0,05) lo añade la app.
+- **Clásicos (OPEX Fitness)**: peso muerto ≈ 125 % de la sentadilla trasera y sentadilla frontal ≈ 85 %
+  (margen alrededor de esos valores añadido por la app).
+- **Rangos generales**: referencias habituales sin una fuente única.
+
+Los **estándares ATG** (peso muerto rumano con barra al 100 % del peso corporal ×10, press inclinado con
+mancuernas al 33 % por mancuerna ×10 y gemelo a una pierna con mancuerna al 25 % ×10) provienen de la compilación
+de a1athlete.com a partir de Ben Patrick; no es una lista oficial.
 
 ## Requisitos
 
@@ -76,6 +121,7 @@ npm run dev        # servidor de desarrollo en http://localhost:3000
 npm run build      # genera dist/ para producción
 npm run preview    # sirve el build de producción localmente
 npm run lint       # comprobación de tipos (tsc --noEmit)
+npm test           # tests de la lógica pura (vitest)
 ```
 
 Configura la URL de la API copiando `.env.example` a `.env`:
@@ -122,6 +168,13 @@ Lo siguiente **no** se incluye y se añade aparte en `public/`:
 
 Las animaciones e imágenes de ejercicios pertenecen a sus creadores originales
 (p. ej. ExerciseDB / GymVisual) y se rigen por sus propias licencias.
+
+## Créditos y licencias de terceros
+
+- Geometría del mapa muscular: adaptada de [MuscleMap](https://github.com/melihcolpan/MuscleMap) (MIT).
+- Todo lo añadido para este proyecto (programas, ratios, pegatina, comparador, mapa en la sesión) está escrito
+  desde cero; no se ha copiado código de otras apps de entrenamiento cuyas licencias (GPL/AGPL) no son
+  compatibles con la de este repositorio.
 
 ## Licencia
 

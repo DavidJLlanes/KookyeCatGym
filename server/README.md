@@ -5,44 +5,33 @@ Backend PHP + SQLite para sincronización de datos de entrenamiento. Multiusuari
 ## 📂 Estructura local
 
 ```
-hevy-workout-tracker/
+kookyecatgym/
 ├── src/                    ← App React
 ├── public/                 ← Imágenes de ejercicios
 ├── server/                 ← BACKEND API (este directorio)
-│   ├── config.php
-│   ├── auth.php
-│   ├── users.php
-│   ├── routines.php
-│   ├── logs.php
-│   ├── exercises.php
-│   ├── active-workout.php
-│   ├── progression.php
-│   ├── userdata.php
-│   ├── index.php
+│   ├── index.php           ← Router
+│   ├── config.php          ← Configuración y base de datos
+│   ├── auth.php, users.php, passkeys.php   ← Cuentas, sesiones y passkeys
+│   ├── routines.php, logs.php, exercises.php, active-workout.php
+│   ├── progression.php, userdata.php       ← Reglas de progresión y datos propios por clave
+│   ├── media.php           ← Fotos y vídeos del usuario
+│   ├── push.php, push_lib.php              ← Avisos de descanso (Web Push)
+│   ├── coach.php, coach_providers.php      ← Coach IA
+│   ├── admin.php, admin_lib.php            ← Administración
 │   ├── .htaccess
 │   └── README.md
 └── package.json
 ```
 
+> `user-data` guarda documentos JSON por clave sin tocar el servidor al añadir datos nuevos. Claves actuales:
+> `body-weights`, `body-goal`, `rotation`, `weight-stacks`, `favorites`, `my-equipment`, `week-start`,
+> `plan-moves`, `deload` y `program` (programa de varias semanas en marcha).
+
 ## 🌐 Despliegue en servidor
 
-Estos archivos se suben a tu hosting en:
-
-```
-kookyecatgym.com/api/
-├── config.php
-├── auth.php
-├── users.php
-├── routines.php
-├── logs.php
-├── exercises.php
-├── active-workout.php
-├── index.php
-└── .htaccess
-
-kookyecatgym.com/data/
-└── gym.db (se crea y migra automáticamente)
-```
+Sube el contenido de `server/` a tu hosting, bajo la ruta que uses como `VITE_API_BASE`
+(por ejemplo `kookyecatgym.com/api/`), y deja la base de datos fuera del web root
+(`APP_DB_PATH`). La base SQLite se crea y migra sola en el primer arranque.
 
 ## 🔐 Autenticación
 
