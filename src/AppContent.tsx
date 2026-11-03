@@ -40,6 +40,7 @@ import LegalFooterLinks from './components/legal/LegalFooterLinks';
 const RoutinesPanel = lazy(() => import('./components/RoutinesPanel'));
 const ProgressPanel = lazy(() => import('./components/ProgressPanel'));
 const UserManagementPanel = lazy(() => import('./components/UserManagementPanel'));
+const NutritionTab = lazy(() => import('./components/NutritionTab'));
 const PhotosPanel = lazy(() => import('./components/PhotosPanel'));
 
 function TabLoadingFallback() {
@@ -201,6 +202,14 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                   onUpdatePhoto={handleUpdatePhoto}
                   onDeletePhoto={handleDeleteMedia}
                 />
+              </Suspense>
+            </TabTransition>
+          )}
+
+          {currentTab === 'nutrition' && (
+            <TabTransition key="nutrition-tab">
+              <Suspense fallback={<TabLoadingFallback />}>
+                <NutritionTab logs={logs} />
               </Suspense>
             </TabTransition>
           )}

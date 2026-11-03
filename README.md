@@ -46,6 +46,7 @@
 | 📋 **Programas de varias semanas** | Tres programas propios (fuerza en olas, cuerpo completo para hipertrofia y 5×5 lineal): apuntas tu máximo de entrenamiento y la app calcula la carga de cada sesión según la semana, con descarga incluida; cuando terminas, «repetir con más carga» sube los máximos. |
 | ⚖️ **Progresión** | Lineal, doble, Greyskull y triple (repeticiones → series → carga), con pila de pesas real de cada máquina. |
 | 📈 **Progreso visible** | 1RM estimado, historial de cada ejercicio, mapa muscular (volumen, recuperación, sin entrenar), peso corporal frente a un objetivo y fuerza relativa. |
+| 🍎 **Nutrición** | Calcula tu metabolismo basal (Mifflin-St Jeor), gasto diario y objetivo de calorías y macros (distinto en días de entreno y descanso); diario por comidas con ~110 alimentos básicos y los tuyos, agua, resumen semanal y exportación a CSV. Las cifras son aproximadas y no sustituyen a un profesional. |
 | 🗺️ **Mapa muscular por todas partes** | Mini mapa de lo que trabaja cada sesión en «Te toca», el plan semanal, las tarjetas de rutina y el editor (en directo mientras añades ejercicios); hoja de «Músculos de la sesión» con lo planeado frente a lo hecho; buscador de ejercicios tocando un músculo en la biblioteca; y «Por músculos»: tocas los que quieres trabajar y se arma la sesión con tu equipamiento, tus favoritos y lo que ya has hecho. |
 | 💪 **Fuerza relativa con historial** | Tu 1RM de cada ejercicio como múltiplo y como % del peso corporal del día en que lo hiciste, con su evolución en el tiempo, el total levantado acumulado y objetivos ATG en % de tu peso. |
 | 🧭 **Balance estructural por fuentes** | Ratios entre levantamientos agrupados por origen, con su atribución en pantalla: Poliquin, clásicos (OPEX) y rangos generales. Ver [Balance estructural](#balance-estructural-y-sus-fuentes). |
@@ -85,6 +86,7 @@ src/
 │   │                         pestañas Músculos y Progresión
 │   ├── library/              Biblioteca: filtros, tarjeta, ficha del ejercicio y creación de ejercicios
 │   ├── body/                 Fotos de progreso físico: comparador antes/después, edición, medidas
+│   ├── nutrition/            Nutrición: diario, comidas, agua, alimentos, objetivos y resumen semanal
 │   ├── muscle/               Mapa muscular: silueta, mini mapa, explorador, balance, sesión por músculos
 │   ├── stats/                Fuerza relativa con historial y estándares ATG
 │   ├── programs/             Tarjeta del programa en marcha y selector de programas
@@ -99,10 +101,12 @@ src/
 │   ├── useRoutineFolders     Carpetas de rutinas y su orden
 │   ├── useLibraryFilters     Filtros de la biblioteca y carga por lotes
 │   ├── useProgressStats      Estadísticas globales de Progreso
+│   ├── useNutritionData      Perfil, alimentos propios y diario de Nutrición
+│   ├── useNutritionTargets   Objetivos del día según peso reciente y día de entreno
 │   └── …                     Temporizadores, pantalla activa, preferencias locales, diálogo de confirmación
 ├── utils/                    Lógica pura (sin React) y sus tests en utils/__tests__
 │   └── shareCards/           Tarjetas compartibles dibujadas en canvas (entrenamiento y progreso)
-└── data/                     Catálogo, geometría del cuerpo, planes de iniciación y programas
+└── data/                     Catálogo, base de alimentos, geometría del cuerpo, planes de iniciación y programas
 ```
 
 Criterio: un componente por responsabilidad, la lógica que no necesita React en `utils/` como

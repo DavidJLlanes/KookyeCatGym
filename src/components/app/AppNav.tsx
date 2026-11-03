@@ -1,12 +1,13 @@
-import { ClipboardList, Dumbbell, Images, Play, TrendingUp, Users } from 'lucide-react';
+import { Apple, ClipboardList, Dumbbell, Images, Play, TrendingUp, Users } from 'lucide-react';
 
-export type AppTab = 'train' | 'routines' | 'exercises' | 'progress' | 'photos' | 'users';
+export type AppTab = 'train' | 'routines' | 'exercises' | 'progress' | 'nutrition' | 'photos' | 'users';
 
 const BASE_TABS = [
   { id: 'train', label: 'Entrenar', icon: Play },
   { id: 'routines', label: 'Rutinas', icon: ClipboardList },
   { id: 'exercises', label: 'Ejercicios', icon: Dumbbell },
   { id: 'progress', label: 'Progreso', icon: TrendingUp },
+  { id: 'nutrition', label: 'Nutrición', icon: Apple },
   { id: 'photos', label: 'Fotos', icon: Images },
 ] as const;
 

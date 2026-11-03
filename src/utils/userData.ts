@@ -3,6 +3,8 @@
 // y se cachean en localStorage para que la app funcione sin conexión.
 
 import type { ActiveProgram } from './programs';
+import type { Food, NutritionLog, NutritionProfile } from './nutrition/types';
+import { sanitizeFoods, sanitizeLog, sanitizeProfile } from './nutrition/sanitize';
 
 /** Un peso corporal: un valor por día (si hay dos el mismo día, manda el último). */
 export interface BodyWeightEntry {
@@ -69,6 +71,10 @@ export interface UserDataShape {
   'week-start': WeekStart;
   'plan-moves': PlanMove[];
   deload: DeloadConfig;
+  /** Nutrición: datos personales para calcular objetivos, alimentos propios y diario. */
+  'nutrition-profile': NutritionProfile | null;
+  'nutrition-foods': Food[];
+  'nutrition-log': NutritionLog;
 }
 
 export type UserDataKey = keyof UserDataShape;
@@ -84,6 +90,9 @@ export const USER_DATA_DEFAULTS: UserDataShape = {
   'week-start': 'mon',
   'plan-moves': [],
   deload: { enabled: false, everyWeeks: 4, startWeek: null, loadPercent: 90, setsPercent: 60, manualWeeks: [] },
+  'nutrition-profile': null,
+  'nutrition-foods': [],
+  'nutrition-log': {},
 };
 
 /** Fecha local YYYY-MM-DD (no UTC: así un pesaje de madrugada cae en su día). */
@@ -107,6 +116,9 @@ export function sanitizeUserData(raw: unknown): UserDataShape {
     'week-start': 'mon',
     'plan-moves': [],
     deload: { enabled: false, everyWeeks: 4, startWeek: null, loadPercent: 90, setsPercent: 60, manualWeeks: [] },
+  'nutrition-profile': null,
+  'nutrition-foods': [],
+  'nutrition-log': {},
   };
   if (!raw || typeof raw !== 'object') return out;
   const r = raw as Record<string, unknown>;
@@ -185,6 +197,10 @@ export function sanitizeUserData(raw: unknown): UserDataShape {
     for (const [id, kg] of Object.entries(pr.trainingMaxes)) if (typeof kg === 'number' && kg > 0 && kg < 1000) maxes[id] = kg;
     out.program = { programId: pr.programId, startDate: pr.startDate, trainingMaxes: maxes };
   }
+
+  out['nutrition-profile'] = sanitizeProfile(r['nutrition-profile']);
+  out['nutrition-foods'] = sanitizeFoods(r['nutrition-foods']);
+  out['nutrition-log'] = sanitizeLog(r['nutrition-log']);
 
   const st = r['weight-stacks'] as any;
   if (st && typeof st === 'object' && !Array.isArray(st)) {
