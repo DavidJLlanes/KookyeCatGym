@@ -4,6 +4,7 @@ import { X, Download, Share2 } from 'lucide-react';
 import { WorkoutLog, Exercise } from '../types';
 import { saveImage, canNativeShare, shareCanvas } from '../utils/shareCanvas';
 import { renderWorkoutCard, ShareVariant } from '../utils/shareCards';
+import PhotoStickerEditor from './share/PhotoStickerEditor';
 
 interface WorkoutShareModalProps {
   isOpen: boolean;
@@ -18,13 +19,18 @@ export default function WorkoutShareModal({ isOpen, onClose, log, exercises, has
   const [previewUrl, setPreviewUrl] = useState('');
   const [nativeOk, setNativeOk] = useState(false);
   const [variant, setVariant] = useState<ShareVariant>('compact');
+  // 'card' = tarjeta de resumen; 'photo' = pegatina sobre una foto
+  const [mode, setMode] = useState<'card' | 'photo'>('card');
 
   useEffect(() => {
-    if (isOpen) setVariant('compact');
+    if (isOpen) {
+      setVariant('compact');
+      setMode('card');
+    }
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || mode !== 'card') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     setNativeOk(canNativeShare());
@@ -36,7 +42,7 @@ export default function WorkoutShareModal({ isOpen, onClose, log, exercises, has
     return () => {
       cancelled = true;
     };
-  }, [isOpen, log, exercises, hasRecord, variant]);
+  }, [isOpen, log, exercises, hasRecord, variant, mode]);
 
   const handleDownload = () => {
     if (previewUrl && canvasRef.current)
@@ -74,6 +80,28 @@ export default function WorkoutShareModal({ isOpen, onClose, log, exercises, has
               </button>
             </div>
 
+            {/* Qué compartir: la tarjeta de resumen o una pegatina sobre tu foto */}
+            <div role="tablist" aria-label="Qué compartir" className="flex gap-1.5 p-1.5 mx-5 mt-4 bg-slate-950 border border-slate-850 rounded-xl">
+              {([['card', 'Tarjeta'], ['photo', 'Sobre una foto']] as const).map(([id, text]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === id}
+                  onClick={() => setMode(id)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${mode === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+
+            {mode === 'photo' ? (
+              <div className="p-5 overflow-y-auto">
+                <PhotoStickerEditor log={log} hasRecord={hasRecord} />
+              </div>
+            ) : (
+              <>
             {/* Versión: compacta o completa (con desglose de ejercicios) */}
             <div className="flex gap-1.5 p-1.5 mx-5 mt-4 bg-slate-950 border border-slate-850 rounded-xl">
               <button
@@ -129,6 +157,8 @@ export default function WorkoutShareModal({ isOpen, onClose, log, exercises, has
                 </button>
               </div>
             </div>
+              </>
+            )}
           </motion.div>
         </div>
       )}

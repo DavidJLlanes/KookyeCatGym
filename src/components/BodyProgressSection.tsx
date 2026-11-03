@@ -8,6 +8,7 @@ import { BodySide } from './muscle/BodyFigure';
 import { LEVEL_FILL } from './muscle/bodyPalette';
 import PhotoCaptureButtons from './PhotoCaptureButtons';
 import PhotoTile from './PhotoTile';
+import BeforeAfterSlider from './BeforeAfterSlider';
 import {
   PROGRESS_MUSCLES,
   MUSCLE_COLOR,
@@ -280,6 +281,7 @@ export default function BodyProgressSection({ photos, onUpload, onUpdate, onDele
     }
   };
 
+  const [compareMode, setCompareMode] = useState<'side' | 'slider'>('side');
   const before = visible[0];
   const after = visible[visible.length - 1];
   const guide = MEASURE_GUIDE[newMuscle];
@@ -475,7 +477,32 @@ export default function BodyProgressSection({ photos, onUpload, onUpdate, onDele
                   <p className="text-xs text-slate-400">Solo hay una foto de {filter.toLowerCase()}. Añade otra más adelante para comparar.</p>
                 ) : (
                   <>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div role="tablist" aria-label="Modo de comparación" className="flex gap-2">
+                      {([['side', 'Lado a lado'], ['slider', 'Deslizador']] as const).map(([id, text]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          role="tab"
+                          aria-selected={compareMode === id}
+                          onClick={() => setCompareMode(id)}
+                          className={`px-3 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${compareMode === id ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
+                        >
+                          {text}
+                        </button>
+                      ))}
+                    </div>
+                    {compareMode === 'slider' && (before.mime.startsWith('image/') && after.mime.startsWith('image/') ? (
+                      <BeforeAfterSlider
+                        beforeUrl={before.url}
+                        afterUrl={after.url}
+                        beforeLabel={`Antes · ${formatDay(before.takenAt, { day: 'numeric', month: 'short' })}`}
+                        afterLabel={`Ahora · ${formatDay(after.takenAt, { day: 'numeric', month: 'short' })}`}
+                        alt={filter}
+                      />
+                    ) : (
+                      <p className="text-xs text-slate-400">El deslizador solo funciona con fotos, no con vídeos.</p>
+                    ))}
+                    <div className={`grid grid-cols-2 gap-2 ${compareMode === 'slider' ? 'hidden' : ''}`}>
                       {[
                         ['Antes', before],
                         ['Ahora', after],
