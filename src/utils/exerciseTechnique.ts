@@ -1,21 +1,20 @@
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { Sparkles, Brain, Cpu, Activity, ShieldAlert, Zap } from 'lucide-react';
 import { Exercise } from '../types';
-import { detectMuscleZone } from '../utils/muscleZone';
-import MuscleZoneImage from './muscle/MuscleZoneImage';
 
-interface ExerciseAIVisualizerProps {
-  exercise: Exercise;
+export interface TechniqueNotes {
+  primaryActivation: string;
+  synergists: string;
+  tempo: string;
+  tips: string[];
+  idealAngle: string;
 }
 
-export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerProps) {
-  const [scanActive] = useState(true);
-  const [activeTab, setActiveTab] = useState<'anatomy' | 'insights'>('anatomy');
-
-  const zone = detectMuscleZone(exercise);
-
-  // Detect specific sub-muscle stimulation and equipment based on exercise names
+/**
+ * Notas de técnica de un ejercicio: músculo principal, músculos secundarios,
+ * ritmo (tempo), rango de movimiento y consejos. Son pautas generales por grupo
+ * muscular y por el tipo de ejercicio que sugiere su nombre, no una medición.
+ */
+export function techniqueNotes(exercise: Exercise): TechniqueNotes {
+  // Variantes del ejercicio según su nombre (inclinado, remo, gemelos…)
   const nameLower = exercise.name.toLowerCase();
   const isUpper = nameLower.includes('inclinado') || nameLower.includes('superior') || nameLower.includes('alto') || nameLower.includes('incline');
   const isLower = nameLower.includes('declinado') || nameLower.includes('inferior') || nameLower.includes('bajo') || nameLower.includes('fondos') || nameLower.includes('decline');
@@ -28,12 +27,12 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
   const isLateral = nameLower.includes('lateral') || nameLower.includes('vuelos') || nameLower.includes('raises') || nameLower.includes('deltoides lateral');
   const isRearDelt = nameLower.includes('posterior') || nameLower.includes('pájaro') || nameLower.includes('face pull') || nameLower.includes('invertido') || nameLower.includes('rear');
 
-  // AI insights specific to each exercise or muscle group
-  const getAIInsights = () => {
+  // Notas de técnica por grupo muscular
+  const notes = ((): TechniqueNotes => {
     switch (exercise.muscleGroup) {
       case 'Pecho':
         return {
-          primaryActivation: isUpper ? 'Pectoral Mayor - Haz Clavicular (96%)' : isLower ? 'Pectoral Mayor - Haz Costal (94%)' : 'Pectoral Mayor - Sternal/Medio (94%)',
+          primaryActivation: isUpper ? 'Pectoral Mayor - Haz Clavicular' : isLower ? 'Pectoral Mayor - Haz Costal' : 'Pectoral Mayor - Porción Esternal',
           synergists: 'Deltoides Anterior, Tríceps Braquial, Serrato',
           tempo: '3-1-1-0 (3s excéntrico lento, 1s pausa inferior, 1s explosivo)',
           tips: [
@@ -49,7 +48,7 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
         };
       case 'Espalda':
         return {
-          primaryActivation: isDeadlift ? 'Erectores de la Columna y Glúteo (95%)' : isRow ? 'Dorsal Ancho y Trapecio Medio (92%)' : 'Dorsal Ancho - Porción Iliaca (93%)',
+          primaryActivation: isDeadlift ? 'Erectores de la Columna y Glúteo' : isRow ? 'Dorsal Ancho y Trapecio Medio' : 'Dorsal Ancho - Porción Iliaca',
           synergists: isDeadlift ? 'Isquiotibiales, Trapecios, Core' : 'Bíceps Braquial, Redondo Mayor, Deltoides Posterior',
           tempo: isDeadlift ? '2-1-2-0 (Tracción controlada con bisagra de cadera limpia)' : '2-0-2-1 (2s extensión excéntrica, 1s parada isométrica)',
           tips: [
@@ -65,7 +64,7 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
         };
       case 'Hombros':
         return {
-          primaryActivation: isLateral ? 'Deltoides Medio (95%)' : isRearDelt ? 'Deltoides Posterior (93%)' : 'Deltoides Anterior (92%)',
+          primaryActivation: isLateral ? 'Deltoides Medio' : isRearDelt ? 'Deltoides Posterior' : 'Deltoides Anterior',
           synergists: 'Tríceps Braquial, Trapecio Superior, Serrato Anterior',
           tempo: '3-0-1-1 (3s descenso controlado, 1s elevación, 1s pico arriba)',
           tips: [
@@ -80,7 +79,7 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
         };
       case 'Brazos':
         return {
-          primaryActivation: isTricep ? 'Tríceps Braquial - Cabeza Larga/Lateral (95%)' : 'Bíceps Braquial - Cabeza Corta/Larga (94%)',
+          primaryActivation: isTricep ? 'Tríceps Braquial - Cabeza Larga/Lateral' : 'Bíceps Braquial - Cabeza Corta/Larga',
           synergists: isTricep ? 'Ancóneo, Deltoides Anterior' : 'Braquial Anterior, Braquiorradial',
           tempo: '3-0-2-1 (3s fase negativa lenta, 1s máxima contracción arriba)',
           tips: [
@@ -93,7 +92,7 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
         };
       case 'Piernas':
         return {
-          primaryActivation: isCalf ? 'Gastrocnemio (Cabeza Interna y Externa) y Sóleo (96%)' : isGlute ? 'Glúteo Mayor y Medio (94%)' : 'Cuádriceps Femoris / Glúteo (91%)',
+          primaryActivation: isCalf ? 'Gastrocnemio (Cabeza Interna y Externa) y Sóleo' : isGlute ? 'Glúteo Mayor y Medio' : 'Cuádriceps Femoris / Glúteo',
           synergists: isCalf ? 'Plantar Delgado, Tendón de Aquiles' : 'Isquiotibiales, Abductores, Core',
           tempo: isCalf ? '2-2-1-2 (2s excéntrico lento, 2s de estiramiento pasivo abajo, 1s elevación explosiva, 2s contracción)' : '3-1-1-0 (3s bajada profunda controlando el descenso, 1s pausa de control)',
           tips: [
@@ -146,7 +145,7 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
         };
       default:
         return {
-          primaryActivation: 'Core - Recto Abdominal y Oblicuos (88%)',
+          primaryActivation: 'Core - Recto Abdominal y Oblicuos',
           synergists: 'Transverso, Flexores de Cadera, Serrato',
           tempo: '2-1-2-1 (Control isométrico estricto de la contracción)',
           tips: [
@@ -157,152 +156,9 @@ export default function ExerciseAIVisualizer({ exercise }: ExerciseAIVisualizerP
           idealAngle: '30° de flexión torácica'
         };
     }
-  };
-
-  const baseInsights = getAIInsights();
+  })();
   // El catálogo importado trae los músculos secundarios reales de cada ejercicio.
-  const insights =
-    exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0
-      ? { ...baseInsights, synergists: exercise.secondaryMuscles.join(', ') }
-      : baseInsights;
-
-
-  return (
-    <div id="exercise-ai-visualizer" className="bg-slate-950/85 border border-slate-800 rounded-2xl overflow-hidden shadow-inner flex flex-col h-full min-h-[300px]">
-      {/* Top Banner AI status */}
-      <div className="bg-slate-900/60 px-4 py-2 border-b border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
-        <div className="flex items-center gap-1.5 text-blue-400">
-          <Brain className="h-3.5 w-3.5 animate-pulse" />
-          <span>SISTEMA DE ANATOMÍA BIOMÉTRICA v4.0</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span>
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-          </div>
-          <span>ALTA RESOLUCIÓN</span>
-        </div>
-      </div>
-
-      {/* Tabs for Anatomy and Insights */}
-      <div className="flex border-b border-slate-800/80 text-xs">
-        <button
-          onClick={() => setActiveTab('anatomy')}
-          className={`flex-1 py-2.5 font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'anatomy' 
-              ? 'border-blue-500 text-blue-400 bg-slate-900/20' 
-              : 'border-transparent text-slate-500 hover:text-slate-300'
-          }`}
-        >
-          <Cpu className="h-3.5 w-3.5" />
-          Escáner Anatomía HD
-        </button>
-        <button
-          onClick={() => setActiveTab('insights')}
-          className={`flex-1 py-2.5 font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'insights' 
-              ? 'border-blue-500 text-blue-400 bg-slate-900/20' 
-              : 'border-transparent text-slate-500 hover:text-slate-300'
-          }`}
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Métricas de Carga
-        </button>
-      </div>
-
-      <div className="flex-grow p-4 flex flex-col justify-between min-h-0 bg-slate-950 relative">
-        {/* Holographic grid scan line overlay */}
-        {scanActive && activeTab === 'anatomy' && (
-          <motion.div 
-            className="absolute left-0 right-0 h-0.5 bg-blue-500/50 shadow-[0_0_12px_#38bdf8] z-10 pointer-events-none"
-            animate={{ 
-              top: ['5%', '95%', '5%'] 
-            }}
-            transition={{ 
-              duration: 4, 
-              repeat: Infinity, 
-              ease: 'linear' 
-            }}
-          />
-        )}
-
-        {activeTab === 'anatomy' ? (
-          <div className="flex flex-col h-full justify-between gap-4">
-            {/* Anatomy Visualizer container */}
-            <div className="flex-grow flex items-center justify-center h-48 relative bg-slate-900/20 rounded-xl border border-slate-900 p-2 overflow-hidden">
-              <MuscleZoneImage zone={zone} className="w-full h-full object-contain" />
-            </div>
-
-            {/* Quick biometric metrics */}
-            <div className="grid grid-cols-2 gap-2 text-[11px] font-mono border-t border-slate-900 pt-3">
-              <div className="bg-slate-900/40 border border-slate-900 p-2 rounded-lg">
-                <span className="text-slate-500 block text-[9px]">MÚSCULO PRINCIPAL</span>
-                <span className="text-blue-400 font-bold block mt-0.5 truncate">{insights.primaryActivation}</span>
-              </div>
-              <div className="bg-slate-900/40 border border-slate-900 p-2 rounded-lg">
-                <span className="text-slate-500 block text-[9px]">MÚSCULOS SINERGISTAS</span>
-                <span className="text-slate-300 font-medium block mt-0.5 truncate">{insights.synergists}</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3 h-full flex flex-col justify-between">
-            {/* Load metrics / Insights Panel */}
-            <div className="space-y-2.5 overflow-y-auto max-h-48 text-xs text-slate-300 leading-relaxed pr-1">
-              <div className="flex items-center gap-2 bg-slate-900/40 border border-slate-900 p-2.5 rounded-xl">
-                <Zap className="h-4 w-4 text-amber-400 flex-shrink-0" />
-                <div>
-                  <span className="text-[10px] text-slate-500 font-mono block">CADENCIA RECOMENDADA DE IA</span>
-                  <span className="font-bold text-slate-200 font-mono text-xs">{insights.tempo}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 bg-slate-900/40 border border-slate-900 p-2.5 rounded-xl">
-                <Activity className="h-4 w-4 text-blue-400 flex-shrink-0" />
-                <div>
-                  <span className="text-[10px] text-slate-500 font-mono block">RANGO DE MOVIMIENTO RECOMENDADO</span>
-                  <span className="font-semibold text-slate-200 font-mono text-xs">{insights.idealAngle}</span>
-                </div>
-              </div>
-
-              <div className="bg-slate-900/20 border border-slate-900 p-3 rounded-xl space-y-2">
-                <span className="text-[10px] text-slate-500 font-mono block flex items-center gap-1">
-                  <ShieldAlert className="h-3 w-3 text-red-400" /> CORRECCIÓN TÉCNICA DE IA
-                </span>
-                <p className="text-xs text-slate-400 italic">
-                  "{insights.tips[0]}"
-                </p>
-              </div>
-            </div>
-
-            {/* Simulated Live wave */}
-            <div className="bg-slate-900/30 border border-slate-900 rounded-xl p-2.5 flex items-center gap-3">
-              <span className="text-[10px] font-mono text-slate-500">M-ECG</span>
-              <div className="flex-grow h-6 flex items-end gap-0.5 overflow-hidden">
-                {[...Array(24)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="w-1.5 bg-blue-500/60 rounded-full"
-                    animate={{ 
-                      height: [
-                        '20%', 
-                        `${Math.floor(Math.sin(i / 2 + Date.now() / 300) * 40 + 50)}%`, 
-                        '20%'
-                      ] 
-                    }}
-                    transition={{ 
-                      duration: 1.5, 
-                      repeat: Infinity, 
-                      ease: 'easeInOut',
-                      delay: i * 0.04 
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0
+    ? { ...notes, synergists: exercise.secondaryMuscles.join(', ') }
+    : notes;
 }

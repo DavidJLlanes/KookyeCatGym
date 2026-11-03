@@ -10,7 +10,7 @@ interface TrainHeroProps {
 /** Banner de bienvenida con los cuatro modos de empezar a entrenar. */
 export default function TrainHero({ onStartFree, onGoToRoutines, onStartByMuscle, onStartRandom }: TrainHeroProps) {
   return (
-    <div className="bg-slate-900 rounded-2xl p-6 sm:p-8 text-slate-100 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden border border-slate-800">
+    <div className="bg-slate-900 rounded-2xl p-6 sm:p-8 text-slate-100 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6 relative overflow-hidden border border-slate-800">
       <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl -translate-y-12 translate-x-12" />
 
       <div className="space-y-3 z-10">
@@ -25,18 +25,18 @@ export default function TrainHero({ onStartFree, onGoToRoutines, onStartByMuscle
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 z-10 w-full md:w-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 z-10 w-full lg:w-[30rem] shrink-0">
         <button
           id="btn-start-empty-workout"
           onClick={onStartFree}
-          className="btn btn-primary btn-lg flex-1 md:flex-initial"
+          className="btn btn-primary btn-lg"
         >
           <Plus />
           Entrenamiento Libre
         </button>
         <button
           onClick={onGoToRoutines}
-          className="btn btn-secondary btn-lg flex-1 md:flex-initial"
+          className="btn btn-secondary btn-lg"
         >
           <ClipboardList className="text-blue-400" />
           Iniciar una Rutina
@@ -44,7 +44,7 @@ export default function TrainHero({ onStartFree, onGoToRoutines, onStartByMuscle
         <button
           id="btn-start-muscle-workout"
           onClick={onStartByMuscle}
-          className="btn btn-secondary btn-lg flex-1 md:flex-initial"
+          className="btn btn-secondary btn-lg"
         >
           <Target className="text-blue-400" />
           Por músculos
@@ -52,7 +52,7 @@ export default function TrainHero({ onStartFree, onGoToRoutines, onStartByMuscle
         <button
           id="btn-start-random-workout"
           onClick={onStartRandom}
-          className="btn btn-secondary btn-lg flex-1 md:flex-initial"
+          className="btn btn-secondary btn-lg"
         >
           <Shuffle className="text-blue-400" />
           Entrenamiento Aleatorio

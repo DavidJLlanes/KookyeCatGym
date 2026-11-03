@@ -37,6 +37,18 @@ body {
   min-height: 100dvh;
 }
 
+/* Con «overflow-wrap: anywhere» heredado, un botón o una pestaña se encogería
+   hasta partir las palabras a mitad («Entrenamient o Libre»). Los controles
+   pueden pasar a otra línea, pero siempre entre palabras. */
+button,
+select,
+label,
+summary,
+th,
+[role='tab'] {
+  overflow-wrap: normal;
+}
+
 img,
 video,
 svg,

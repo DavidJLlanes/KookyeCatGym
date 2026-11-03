@@ -1,9 +1,9 @@
 import React, { useState} from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Info, Clock, X, Brain} from 'lucide-react';
+import { Clock, X, Brain, Play } from 'lucide-react';
 import { Exercise} from '../../types';
 import { getMuscleColor } from '../../data/exerciseMeta';
-import ExerciseAIVisualizer from '../ExerciseAIVisualizer';
+import ExerciseMuscleView from './ExerciseMuscleView';
 import { useLightbox } from '../../context/LightboxContext';
 import ExerciseMediaSection from '../ExerciseMediaSection';
 import type { MediaItem } from '../../api/client';
@@ -22,7 +22,7 @@ export default function ExerciseDetailModal({
   viewingExercise, onClose, media, onUploadMedia, onDeleteMedia, onSetPrimaryMedia,
 }: ExerciseDetailModalProps) {
   const { openLightbox } = useLightbox();
-  const [viewingMode, setViewingMode] = useState<'photo' | 'ai'>('ai');
+  const [viewingMode, setViewingMode] = useState<'demo' | 'muscle'>('muscle');
   return (
   <AnimatePresence>
     {viewingExercise && (
@@ -33,32 +33,32 @@ export default function ExerciseDetailModal({
           exit={{ scale: 0.95, opacity: 0 }}
           className="bg-slate-900 rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl border border-slate-800 max-h-[85dvh] flex flex-col"
         >
-          {/* Selector de modo: IA vs Foto Real */}
+          {/* Selector de modo: grupo muscular o demostración del movimiento */}
           <div className="flex bg-slate-950 border-b border-slate-850 p-3.5 text-xs font-semibold gap-2.5 relative">
             <div className="flex gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800/50 flex-grow">
               <button
                 type="button"
-                onClick={() => setViewingMode('ai')}
+                onClick={() => setViewingMode('muscle')}
                 className={`flex-grow py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  viewingMode === 'ai'
+                  viewingMode === 'muscle'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <Brain className="h-3.5 w-3.5 text-blue-200" />
-                Ilustración IA
+                Grupo muscular
               </button>
               <button
                 type="button"
-                onClick={() => setViewingMode('photo')}
+                onClick={() => setViewingMode('demo')}
                 className={`flex-grow py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  viewingMode === 'photo'
+                  viewingMode === 'demo'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Info className="h-3.5 w-3.5 text-blue-200" />
-                Foto Real
+                <Play className="h-3.5 w-3.5 text-blue-200" />
+                Demostración
               </button>
             </div>
             <button
@@ -72,8 +72,8 @@ export default function ExerciseDetailModal({
 
           {/* Contenido Visual Condicional */}
           <div className="relative">
-            {viewingMode === 'photo' ? (
-              <div className="relative h-[320px] w-full bg-slate-950">
+            {viewingMode === 'demo' ? (
+              <div className="relative h-[min(340px,40dvh)] w-full bg-slate-950">
                 {viewingExercise.videoUrl ? (
                   <video
                     key={viewingExercise.videoUrl}
@@ -109,8 +109,8 @@ export default function ExerciseDetailModal({
                 </div>
               </div>
             ) : (
-              <div className="relative h-[270px] w-full bg-slate-950 border-b border-slate-800/40">
-                <ExerciseAIVisualizer exercise={viewingExercise} />
+              <div className="border-b border-slate-800/40">
+                <ExerciseMuscleView exercise={viewingExercise} />
               </div>
             )}
           </div>

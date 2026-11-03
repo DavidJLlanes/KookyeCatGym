@@ -25,20 +25,20 @@ interface NavProps {
 /** Navegación horizontal de la cabecera (escritorio). */
 export function DesktopNav({ current, isAdmin, onSelect }: NavProps) {
   return (
-    <nav className="hidden md:flex items-center gap-1.5">
+    <nav className="hidden lg:flex shrink-0 items-center gap-1">
       {tabsFor(isAdmin).map((tab) => {
         const Icon = tab.icon;
         return (
           <button
             key={tab.id}
             onClick={() => onSelect(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer border ${
+            className={`flex items-center gap-1.5 px-2 xl:px-2.5 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer border ${
               current === tab.id
                 ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20'
                 : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="hidden xl:block h-4 w-4 shrink-0" />
             {tab.label}
           </button>
         );
@@ -53,7 +53,7 @@ export function DesktopNav({ current, isAdmin, onSelect }: NavProps) {
  */
 export function MobileNav({ current, isAdmin, onSelect }: NavProps) {
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] flex z-30 shadow-2xl">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] flex z-30 shadow-2xl">
       {tabsFor(isAdmin).map((tab) => {
         const Icon = tab.icon;
         const isSelected = current === tab.id;

@@ -76,8 +76,8 @@ export default function BodyWeightSection({ logs, exercises }: { logs: WorkoutLo
           <Scale className="h-4 w-4 text-blue-400" />
           <h3 className="font-bold text-white text-sm">Peso corporal</h3>
         </div>
-        <div className="flex gap-2 items-end">
-          <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap gap-2 items-end">
+          <div className="flex-1 min-w-[8rem]">
             <label htmlFor="bw-kg" className="block text-[11px] font-bold text-slate-500 mb-1">Peso (kg)</label>
             <DecimalInput id="bw-kg" value={kg} onChange={setKg} placeholder="Ej. 78,4" className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 focus:border-blue-500 rounded-xl text-sm text-white placeholder-slate-600 outline-none" />
           </div>

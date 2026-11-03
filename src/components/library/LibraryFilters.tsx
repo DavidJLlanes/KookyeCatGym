@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Plus, Dumbbell, Check, Brain, Star, Package} from 'lucide-react';
+import { Search, Plus, Dumbbell, Check, Brain, Star, Package, Play } from 'lucide-react';
 import { Exercise} from '../../types';
 import { MUSCLE_GROUPS, EQUIPMENT_TYPES, EXERCISE_CATEGORIES} from '../../data/exerciseMeta';
 import MuscleZoneImage from '../muscle/MuscleZoneImage';
@@ -83,8 +83,8 @@ export default function LibraryFilters({ exercises, filters, libraryViewMode, se
                 : 'text-slate-500 hover:text-slate-300'
             }`}
           >
-            <Dumbbell className="h-3.5 w-3.5 text-blue-200" />
-            Fotos Reales
+            <Play className="h-3.5 w-3.5 text-blue-200" />
+            Demostración
           </button>
         </div>
       </div>
