@@ -498,7 +498,11 @@ export default function ExerciseLibraryPanel({
               {/* Action buttons */}
               <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-slate-800">
                 <button
-                  onClick={() => setViewingExercise(ex)}
+                  onClick={() => {
+                    // El cardio no tiene músculo que ilustrar: se abre directamente la foto
+                    if (detectMuscleZone(ex) === 'cardio') setViewingMode('photo');
+                    setViewingExercise(ex);
+                  }}
                   className="flex-1 min-w-[112px] flex items-center justify-center gap-1.5 px-3 py-2.5 bg-slate-950 hover:bg-slate-850 text-slate-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-slate-800 whitespace-nowrap"
                 >
                   <Info className="h-3.5 w-3.5 text-blue-400 shrink-0" />
