@@ -43,15 +43,24 @@
 | ⚖️ **Progresión** | Lineal, doble, Greyskull y triple (repeticiones → series → carga), con pila de pesas real de cada máquina. |
 | 📈 **Progreso visible** | 1RM estimado, historial de cada ejercicio, mapa muscular (volumen, recuperación, sin entrenar), peso corporal frente a un objetivo y fuerza relativa. |
 | 📅 **Constancia** | Calendario y mapa de actividad. |
-| 🤖 **IA para tus consejos** | Coach IA integrado (con tu clave de API), resumen para pegar en cualquier IA y un [servidor MCP](mcp/README.md) de solo lectura. |
+| 🤖 **IA para tus consejos** | Coach IA integrado con tu propia clave de API (OpenRouter, Gemini, Groq, Cerebras, Mistral, Anthropic, OpenAI o DeepSeek; OpenRouter y Gemini tienen opciones gratuitas), resumen para pegar en cualquier IA y un [servidor MCP](mcp/README.md) de solo lectura. |
 | 📤 **Tus datos, tuyos** | Exporta a CSV o JSON, importa desde Hevy, Strong o FitNotes, y comparte planes como archivo o PDF. |
+| 🧮 **Calculadoras de carga** | Calculadora de discos por lado según el material que tengas y editor de pilas de pesas por máquina. |
+| 🎬 **Tus propios medios** | Sustituye el vídeo o la foto de cualquier ejercicio por los tuyos, y añade fotos de progreso al calendario. |
+| 🔔 **Descansos con aviso** | Notificaciones push cuando termina el descanso entre series, aunque la app esté en segundo plano. |
+| 📶 **Sin conexión** | Service worker y PWA instalable: la app sigue abriendo y mostrando tus datos sin red. |
+| 🔐 **Cuentas seguras** | Inicio de sesión con contraseña o passkeys (Face ID, Touch ID, huella, Windows Hello), sin depender de librerías externas. |
+| 🔀 **Sincronización entre dispositivos** | Fusión de cambios a tres vías, para que dos dispositivos editando a la vez no se pisen. |
+| ⚠️ **Avisos de datos raros** | Detección de anomalías en tus registros: marca valores que probablemente sean errores de tecleo. |
 | 🔠 **Accesible** | Tamaño de letra ajustable y diseño probado de 320 a 430 px de ancho. |
 | 🖼️ **Tarjetas para compartir** | Genera tarjetas de tus entrenamientos y resultados para redes. |
+| 🧩 **Combinador de rutinas** | Combina varias rutinas en un mismo plan de días. |
+| 🛠️ **Administración** | Panel para administradores con estadísticas, registro de auditoría, ajustes y control de altas de usuarios. |
 | 🏠 **Tu propio servidor** | Aloja la app con React, PHP y SQLite, con soporte multiusuario. |
 
 > El repositorio incluye el catálogo de ejercicios con sus vídeos e imágenes
-> (`public/exercises/`, unos 190 MB). Las imágenes anatómicas y los iconos de
-> marca se añaden aparte (ver [Imágenes](#imágenes)).
+> (`public/exercises/`, unos 190 MB) y las imágenes anatómicas por zona muscular
+> (ver [Imágenes](#imágenes)).
 
 ## Requisitos
 
