@@ -33,28 +33,32 @@ export function buildFromExercise(ex: Exercise, ctx: PrefillContext, stamp: numb
   };
 }
 
-/** Todos los ejercicios de una rutina, listos para añadir a la sesión en curso. */
-export function buildFromRoutine(routine: Routine, ctx: PrefillContext, stamp: number = Date.now()): WorkoutExercise[] {
-  return routine.exercises.map((re, i) => ({
-    id: `we-active-${stamp}-${i}-${Math.random().toString(36).slice(2, 6)}`,
-    exerciseId: re.exerciseId,
-    restTime: re.restTime,
-    ...(re.supersetId ? { supersetId: `${re.supersetId}-${stamp}` } : {}),
-    ...(re.alternativeIds && re.alternativeIds.length > 0 ? { alternativeIds: re.alternativeIds } : {}),
-    ...(re.perSide ? { perSide: true } : {}),
-    sets: prefill(
-      re.exerciseId,
-      re.sets.map((s, j) => ({
-        id: `set-act-${stamp}-${i}-${j}`,
-        weight: s.weight,
-        reps: s.reps,
-        completed: false,
-        ...(s.isWarmup ? { isWarmup: true } : {}),
-        ...(s.setType ? { setType: s.setType } : {}),
-        ...(s.restTime !== undefined ? { restTime: s.restTime } : {}),
-        ...(s.distance !== undefined ? { distance: s.distance } : {}),
-      })),
-      ctx
-    ),
-  }));
+/**
+ * Todos los ejercicios de una rutina, listos para añadir a la sesión en curso.
+ * Los pesos se rellenan con lo de la última vez (o la regla de progresión),
+ * salvo en `exactIds`: esos ejercicios conservan los pesos de la rutina tal
+ * cual (los programas calculan su carga).
+ */
+export function buildFromRoutine(routine: Routine, ctx: PrefillContext, stamp: number = Date.now(), exactIds: ReadonlySet<string> = new Set()): WorkoutExercise[] {
+  return routine.exercises.map((re, i) => {
+    const base: WorkoutSet[] = re.sets.map((s, j) => ({
+      id: `set-act-${stamp}-${i}-${j}`,
+      weight: s.weight,
+      reps: s.reps,
+      completed: false,
+      ...(s.isWarmup ? { isWarmup: true } : {}),
+      ...(s.setType ? { setType: s.setType } : {}),
+      ...(s.restTime !== undefined ? { restTime: s.restTime } : {}),
+      ...(s.distance !== undefined ? { distance: s.distance } : {}),
+    }));
+    return {
+      id: `we-active-${stamp}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+      exerciseId: re.exerciseId,
+      restTime: re.restTime,
+      ...(re.supersetId ? { supersetId: `${re.supersetId}-${stamp}` } : {}),
+      ...(re.alternativeIds && re.alternativeIds.length > 0 ? { alternativeIds: re.alternativeIds } : {}),
+      ...(re.perSide ? { perSide: true } : {}),
+      sets: exactIds.has(re.exerciseId) ? base : prefill(re.exerciseId, base, ctx),
+    };
+  });
 }

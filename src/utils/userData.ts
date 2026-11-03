@@ -2,6 +2,8 @@
 // guardan en el servidor como documentos JSON por clave (endpoint "user-data")
 // y se cachean en localStorage para que la app funcione sin conexión.
 
+import type { ActiveProgram } from './programs';
+
 /** Un peso corporal: un valor por día (si hay dos el mismo día, manda el último). */
 export interface BodyWeightEntry {
   date: string; // YYYY-MM-DD, en hora local
@@ -56,6 +58,8 @@ export interface DeloadConfig {
 }
 
 export interface UserDataShape {
+  /** Programa de varias semanas en marcha, o null. */
+  program: ActiveProgram | null;
   'body-weights': BodyWeightEntry[];
   'body-goal': BodyGoal | null;
   rotation: RotationConfig;
@@ -70,6 +74,7 @@ export interface UserDataShape {
 export type UserDataKey = keyof UserDataShape;
 
 export const USER_DATA_DEFAULTS: UserDataShape = {
+  program: null,
   'body-weights': [],
   'body-goal': null,
   rotation: { enabled: false, routineIds: [] },
@@ -92,6 +97,7 @@ export function localDayKey(d: Date = new Date()): string {
 /** Lo que llega del servidor/caché se valida: un documento corrupto no debe romper la app. */
 export function sanitizeUserData(raw: unknown): UserDataShape {
   const out: UserDataShape = {
+    program: null,
     'body-weights': [],
     'body-goal': null,
     rotation: { enabled: false, routineIds: [] },
@@ -171,6 +177,13 @@ export function sanitizeUserData(raw: unknown): UserDataShape {
       setsPercent: num(dl.setsPercent, 30, 100, 60),
       manualWeeks: Array.isArray(dl.manualWeeks) ? (dl.manualWeeks as unknown[]).filter(isDay) : [],
     };
+  }
+
+  const pr = r.program as any;
+  if (pr && typeof pr.programId === 'string' && typeof pr.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(pr.startDate) && pr.trainingMaxes && typeof pr.trainingMaxes === 'object') {
+    const maxes: Record<string, number> = {};
+    for (const [id, kg] of Object.entries(pr.trainingMaxes)) if (typeof kg === 'number' && kg > 0 && kg < 1000) maxes[id] = kg;
+    out.program = { programId: pr.programId, startDate: pr.startDate, trainingMaxes: maxes };
   }
 
   const st = r['weight-stacks'] as any;

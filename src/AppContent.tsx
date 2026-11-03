@@ -59,7 +59,8 @@ import {
 import MuscleZoneImage from './components/muscle/MuscleZoneImage';
 import MuscleSessionModal from './components/muscle/MuscleSessionModal';
 import { pickSessionExercises } from './utils/sessionBuilder';
-import { buildFromExercise } from './utils/workoutBuild';
+import { buildFromExercise, buildFromRoutine } from './utils/workoutBuild';
+import ProgramCard from './components/programs/ProgramCard';
 import { BODY_PART_LABEL } from './utils/muscleStats';
 import { remapWorkoutList, remapActiveWorkout, remapByExerciseId } from './utils/exerciseIds';
 import { deepEqual, mergeCollection, mergeRecord } from './utils/threeWayMerge';
@@ -650,56 +651,29 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
     setShowRandomWorkoutModal(false);
   };
 
-  // Start workout from a routine
-  const handleStartRoutine = (routine: Routine) => {
+  // Start workout from a routine. Los pesos y repeticiones se prerrellenan con
+  // lo que se hizo la ÚLTIMA vez con cada ejercicio (o con lo que toca según su
+  // regla de progresión); `exactIds` marca los ejercicios que conservan la carga
+  // de la rutina tal cual (los programas calculan la suya).
+  const handleStartRoutine = (routine: Routine, exactIds: ReadonlySet<string> = new Set()) => {
     if (activeWorkout) {
       alert('Ya tienes un entrenamiento activo. Finalízalo o cancélalo antes de iniciar uno nuevo.');
       return;
     }
+    const ctx = { logs, rules: progressionRules, stacks: userData['weight-stacks'] };
+    const built = buildFromRoutine(routine, ctx, Date.now(), exactIds);
 
-    // Map routine exercises to fresh active copies. Los pesos y repeticiones se
-    // prerrellenan con lo que se hizo la ÚLTIMA vez con ese ejercicio, así la
-    // mayoría de los días no hay que reescribirlos: se arranca con los valores
-    // anteriores ya puestos en los campos y solo se ajusta lo que cambie.
-    // Si el ejercicio tiene una regla de progresión activa, en vez de repetir
-    // la última vez se parte de lo que toca según la regla.
-    const rulesByExercise = new Map(progressionRules.map((r) => [r.exerciseId, r]));
-    const activeExercises: WorkoutExercise[] = routine.exercises.map((re) => {
-      const lastSets = getLastPerformanceSets(re.exerciseId, logs);
-      const baseSets = re.sets.map((s, idx) => ({
-        id: `set-active-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
-        weight: s.weight,
-        reps: s.reps,
-        completed: false, // Reset completion checklist
-        // Tipos de serie definidos en la rutina (calentamiento, drop set…)
-        ...(s.isWarmup ? { isWarmup: true } : {}),
-        ...(s.setType ? { setType: s.setType } : {}),
-        ...(s.restTime !== undefined ? { restTime: s.restTime } : {}),
-        ...(s.distance !== undefined ? { distance: s.distance } : {}),
-      }));
-      return {
-        id: `we-active-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        exerciseId: re.exerciseId,
-        restTime: re.restTime,
-        ...(re.supersetId ? { supersetId: re.supersetId } : {}),
-        ...(re.alternativeIds && re.alternativeIds.length > 0 ? { alternativeIds: re.alternativeIds } : {}),
-        ...(re.perSide ? { perSide: true } : {}),
-        sets: prefillWithProgression(baseSets, lastSets, rulesByExercise.get(re.exerciseId), userData['weight-stacks'][re.exerciseId]),
-      };
-    });
-
-    // En una semana de descarga, menos series y menos peso (y se anota como tal)
-    const inDeload = isDeloadWeek(userData.deload, new Date(), userData['week-start']);
-    const freshWorkout = {
+    // En una semana de descarga, menos series y menos peso (y se anota como tal).
+    // Los programas ya traen su propia descarga.
+    const inDeload = exactIds.size === 0 && isDeloadWeek(userData.deload, new Date(), userData['week-start']);
+    saveActiveWorkoutState({
       routineId: routine.id,
       routineName: routine.name,
       startTime: new Date().toISOString(),
       exercises: inDeload
-        ? activeExercises.map((we) => deloadExercise(we, userData.deload, exercises.find((e) => e.id === we.exerciseId), userData['weight-stacks'][we.exerciseId]))
-        : activeExercises,
-    };
-
-    saveActiveWorkoutState(freshWorkout);
+        ? built.map((we) => deloadExercise(we, userData.deload, exercises.find((e) => e.id === we.exerciseId), userData['weight-stacks'][we.exerciseId]))
+        : built,
+    });
   };
 
   // Update active workout callback
@@ -1213,6 +1187,8 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                   </button>
                 </div>
               </div>
+
+              <ProgramCard exercises={exercises} logs={logs} onStartSession={handleStartRoutine} />
 
               <NextSessionCard routines={routines} logs={logs} exercises={exercises} onStart={handleStartRoutine} />
 
