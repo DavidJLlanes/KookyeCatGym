@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useUserData } from '../context/UserDataContext';
 import { BASE_FOODS } from '../data/foods';
 import { DayLog, EMPTY_DAY, Food, LogEntry, MealId, NutritionLog, NutritionProfile } from '../utils/nutrition/types';
@@ -17,6 +17,9 @@ export function useNutritionData() {
   const profile = data['nutrition-profile'];
   const customFoods = data['nutrition-foods'];
   const log = data['nutrition-log'];
+  // Última versión del diario, también entre dos escrituras seguidas antes de volver a pintar
+  const logRef = useRef(log);
+  logRef.current = log;
 
   /** Catálogo completo: primero los propios, luego los básicos. */
   const allFoods = useMemo<Food[]>(() => [...customFoods, ...BASE_FOODS], [customFoods]);
@@ -24,10 +27,12 @@ export function useNutritionData() {
   const saveProfile = (p: NutritionProfile) => setValue('nutrition-profile', p);
 
   const writeDay = (date: string, update: (day: DayLog) => DayLog) => {
-    const next: NutritionLog = { ...log };
-    const day = update(log[date] ?? EMPTY_DAY);
+    const current = logRef.current;
+    const next: NutritionLog = { ...current };
+    const day = update(current[date] ?? EMPTY_DAY);
     if (day.entries.length === 0 && day.waterMl === 0) delete next[date];
     else next[date] = day;
+    logRef.current = next;
     setValue('nutrition-log', next);
   };
 

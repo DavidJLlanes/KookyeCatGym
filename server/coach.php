@@ -2,6 +2,7 @@
 require_once 'config.php';
 require_once 'admin_lib.php';
 require_once 'coach_providers.php';
+require_once 'coach_nutrition.php';
 
 global $pdo, $dataDir;
 $currentUser = requireAuth();
@@ -11,11 +12,13 @@ $route = $_GET['_route'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 
 const COACH_DAILY_LIMIT = 10;          // análisis por usuario y día
+const NUTRITION_DAILY_LIMIT = 40;      // peticiones de IA de Nutrición por usuario y día
 const COACH_MAX_SUMMARY_BYTES = 60000;
 const COACH_MAX_CONNECTIONS = 10;
 const COACH_DEFAULT_TIMEOUT = 45;      // segundos por intento
 const COACH_DEFAULT_TOTAL_TIMEOUT = 120; // segundos para todo el análisis (todas las conexiones)
 
+$pdo->exec("CREATE TABLE IF NOT EXISTS nutrition_ai_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, task TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS coach_runs (
         id TEXT PRIMARY KEY,
@@ -409,6 +412,51 @@ elseif ($route === 'coach/analyze' && $method === 'POST') {
 
     $finish('error', null, 'No se pudo completar el análisis. ' . implode(' · ', $failures));
     exit;
+}
+
+elseif ($route === 'coach/nutrition' && $method === 'POST') {
+    // Síncrono: las respuestas de nutrición son cortas. Cuenta en su propio límite diario.
+    $connections = activeConnections($config);
+    if (count($connections) === 0) {
+        sendJson(['error' => 'La IA no funciona sin al menos una clave de API configurada.', 'code' => 'not_configured'], 409);
+    }
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM nutrition_ai_runs WHERE user_id = :u AND created_at >= datetime('now', '-1 day')");
+    $stmt->execute([':u' => $userId]);
+    if ((int) $stmt->fetchColumn() >= NUTRITION_DAILY_LIMIT) {
+        sendJson(['error' => 'Has llegado al máximo de ' . NUTRITION_DAILY_LIMIT . ' peticiones de IA de nutrición en 24 horas.'], 429);
+    }
+    $data = getRequestData();
+    $task = (string) ($data['task'] ?? '');
+    if (!in_array($task, NUTRITION_TASKS, true)) sendJson(['error' => 'Tarea no válida'], 400);
+    try {
+        $user = nutritionUserMessage($task, is_array($data['input'] ?? null) ? $data['input'] : []);
+    } catch (InvalidArgumentException $e) {
+        sendJson(['error' => $e->getMessage()], 400);
+    }
+    if (strlen($user) > 20000) sendJson(['error' => 'Petición demasiado grande'], 400);
+    $pdo->prepare("INSERT INTO nutrition_ai_runs (user_id, task) VALUES (:u, :t)")->execute([':u' => $userId, ':t' => $task]);
+
+    set_time_limit(0);
+    $deadline = microtime(true) + min($config['totalTimeoutSeconds'], 55);
+    $failures = [];
+    foreach ($connections as $connection) {
+        $label = COACH_PROVIDERS[$connection['provider']]['name'] . ' (' . $connection['model'] . ')';
+        $left = (int) floor($deadline - microtime(true));
+        if ($left < 5) { $failures[] = 'se agotó el tiempo antes de probar ' . $label; break; }
+        try {
+            $text = providerChat($connection, nutritionSystemPrompt($task), $user, null, min($config['timeoutSeconds'], $left));
+            $result = normalizeNutritionResult($task, extractJsonObject($text));
+            $result['proveedor'] = COACH_PROVIDERS[$connection['provider']]['name'];
+            $result['modelo'] = $connection['model'];
+            sendJson($result);
+        } catch (CoachProviderError $e) {
+            $failures[] = "$label: " . $e->getMessage();
+        } catch (Throwable $e) {
+            error_log('[KookyeCatGym nutrition] ' . $e->getMessage());
+            $failures[] = "$label: error inesperado";
+        }
+    }
+    sendJson(['error' => 'No se pudo completar la petición. ' . implode(' · ', $failures)], 502);
 }
 
 else {

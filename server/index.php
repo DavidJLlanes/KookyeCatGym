@@ -32,6 +32,7 @@ $routes = [
     'coach/models' => 'coach.php',
     'coach/test' => 'coach.php',
     'coach/cancel' => 'coach.php',
+    'coach/nutrition' => 'coach.php',
     'auth/registration' => 'auth.php',
     'admin/stats' => 'admin.php',
     'admin/audit' => 'admin.php',

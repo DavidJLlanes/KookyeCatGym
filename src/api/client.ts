@@ -4,6 +4,7 @@
 import { getAuthToken, hashPassword, setSession, clearSession, AuthUser } from '../auth';
 import type { Exercise, Routine, WorkoutLog } from '../types';
 import type { ProgressionRule } from '../utils/progressionRules';
+import type { AiTask, AiTaskMap } from '../utils/nutrition/ai';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
@@ -462,6 +463,11 @@ export async function getCoachModels(ref: CoachConnectionRef): Promise<{ id: str
 
 export async function testCoachConnection(ref: CoachConnectionRef): Promise<{ ok: boolean; ms?: number; message: string }> {
   return apiCall('coach/test', { method: 'POST', body: ref });
+}
+
+/** Tareas de IA de Nutrición (estimar, recetas, plan, análisis). El servidor valida la respuesta. */
+export async function askNutritionAi<T extends AiTask>(task: T, input: AiTaskMap[T]['input']): Promise<AiTaskMap[T]['result']> {
+  return apiCall('coach/nutrition', { method: 'POST', body: { task, input } });
 }
 
 export async function cancelCoachRun(id: string) {

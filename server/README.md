@@ -16,7 +16,7 @@ kookyecatgym/
 │   ├── progression.php, userdata.php       ← Reglas de progresión y datos propios por clave
 │   ├── media.php           ← Fotos y vídeos del usuario
 │   ├── push.php, push_lib.php              ← Avisos de descanso (Web Push)
-│   ├── coach.php, coach_providers.php      ← Coach IA
+│   ├── coach.php, coach_providers.php, coach_nutrition.php ← Coach IA y IA de Nutrición
 │   ├── admin.php, admin_lib.php            ← Administración
 │   ├── .htaccess
 │   └── README.md

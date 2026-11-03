@@ -89,3 +89,20 @@ describe('csv y validación', () => {
     }
   });
 });
+
+import { entryFromEstimate, entryFromRecipe, parseFoodList } from '../nutrition/ai';
+
+describe('IA de nutrición: ayudas puras', () => {
+  it('separa y limpia la lista de alimentos sin duplicados', () => {
+    expect(parseFoodList('Pollo, arroz;\n pollo ,, huevos ')).toEqual(['Pollo', 'arroz', 'huevos']);
+    expect(parseFoodList('a,'.repeat(40)).length).toBe(1);
+    expect(parseFoodList(Array.from({ length: 40 }, (_, i) => `x${i}`).join(',')).length).toBe(25);
+  });
+  it('convierte estimaciones y recetas en entradas del diario', () => {
+    const e = entryFromEstimate({ name: 'Arroz', grams: 150, kcal: 195, protein: 4, carbs: 42, fat: 0.4 }, 'lunch');
+    expect(e).toMatchObject({ meal: 'lunch', name: 'Arroz', grams: 150, kcal: 195 });
+    expect(entryFromEstimate({ name: 'x', grams: 0, kcal: 1, protein: 0, carbs: 0, fat: 0 }, 'snack').grams).toBeUndefined();
+    const r = entryFromRecipe({ titulo: 'Pollo', raciones: 2, minutos: 20, ingredientes: [], pasos: [], porRacion: { kcal: 400, protein: 40, carbs: 10, fat: 9 } }, 'dinner');
+    expect(r).toEqual({ meal: 'dinner', name: 'Pollo', kcal: 400, protein: 40, carbs: 10, fat: 9 });
+  });
+});

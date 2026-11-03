@@ -8,13 +8,15 @@ import TodayView from './nutrition/TodayView';
 import FoodsPanel from './nutrition/FoodsPanel';
 import TargetsPanel from './nutrition/TargetsPanel';
 import WeekView from './nutrition/WeekView';
+import AiTools from './nutrition/AiTools';
 
-type SubTab = 'today' | 'foods' | 'goals' | 'week';
+type SubTab = 'today' | 'foods' | 'goals' | 'week' | 'ai';
 const SUB_TABS: { id: SubTab; label: string }[] = [
   { id: 'today', label: 'Hoy' },
   { id: 'foods', label: 'Alimentos' },
   { id: 'goals', label: 'Objetivos' },
   { id: 'week', label: 'Semana' },
+  { id: 'ai', label: 'IA' },
 ];
 
 /** Pestaña Nutrición: orquesta el diario, los alimentos, los objetivos y el resumen semanal. */
@@ -27,7 +29,7 @@ export default function NutritionTab({ logs }: { logs: WorkoutLog[] }) {
 
   return (
     <div className="space-y-5">
-      <div role="tablist" className="grid grid-cols-4 gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
+      <div role="tablist" className="grid grid-cols-5 gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
         {SUB_TABS.map((t) => (
           <button
             key={t.id}
@@ -35,7 +37,7 @@ export default function NutritionTab({ logs }: { logs: WorkoutLog[] }) {
             aria-selected={sub === t.id}
             id={`nutrition-sub-${t.id}`}
             onClick={() => setSub(t.id)}
-            className={`py-2 rounded-xl text-xs font-bold cursor-pointer ${sub === t.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`py-2 px-0.5 rounded-xl text-[11px] sm:text-xs font-bold cursor-pointer truncate ${sub === t.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
           >
             {t.label}
           </button>
@@ -56,6 +58,7 @@ export default function NutritionTab({ logs }: { logs: WorkoutLog[] }) {
       {sub === 'foods' && <FoodsPanel data={data} />}
       {sub === 'goals' && <TargetsPanel profile={data.profile} onSave={data.saveProfile} />}
       {sub === 'week' && <WeekView data={data} targets={targets} />}
+      {sub === 'ai' && <AiTools date={date} data={data} targets={targets} />}
     </div>
   );
 }
