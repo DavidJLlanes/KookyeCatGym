@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { Ruler, ChevronDown, AlertCircle, ArrowRight, X, Images, CalendarDays, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Ruler, ChevronDown, AlertCircle, Images, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { MediaItem, MediaTarget, ProgressMuscle } from '../api/client';
 import BODY_PATHS from '../data/bodyPaths';
 import { BODY_PART_GROUP } from '../utils/muscleStats';
@@ -8,7 +7,6 @@ import { BodySide } from './muscle/BodyFigure';
 import { LEVEL_FILL } from './muscle/bodyPalette';
 import PhotoCaptureButtons from './PhotoCaptureButtons';
 import PhotoTile from './PhotoTile';
-import BeforeAfterSlider from './BeforeAfterSlider';
 import {
   PROGRESS_MUSCLES,
   MUSCLE_COLOR,
@@ -23,6 +21,12 @@ import {
   parseMeasure,
   capitalize,
 } from '../utils/photoTools';
+import MeasureInput from './body/MeasureInput';
+import MuscleChips from './body/MuscleChips';
+import EditPhotoDialog from './body/EditPhotoDialog';
+import BodyComparison from './body/BodyComparison';
+import { loadUnit, saveUnit, diffLabel } from './body/measureUnit';
+
 
 // Fotos de progreso físico por fecha y grupo muscular, con medida opcional.
 // Se usa en Progreso → Físico y en la pestaña Fotos. El mapa muscular es el
@@ -35,152 +39,6 @@ export interface BodyProgressSectionProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-const UNIT_KEY = 'kookyecatgym-measure-unit';
-
-function loadUnit(): MeasureUnit {
-  try {
-    return localStorage.getItem(UNIT_KEY) === 'mm' ? 'mm' : 'cm';
-  } catch {
-    return 'cm';
-  }
-}
-
-function diffLabel(mm: number, unit: MeasureUnit): string {
-  if (mm === 0) return 'sin cambios';
-  return `${mm > 0 ? '+' : '−'}${formatMeasure(Math.abs(mm), unit)}`;
-}
-
-function MeasureInput({ value, onChange, unit, onUnit }: { value: string; onChange: (v: string) => void; unit: MeasureUnit; onUnit: (u: MeasureUnit) => void }) {
-  return (
-    <div className="flex gap-1.5">
-      <input
-        type="text"
-        inputMode="decimal"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={unit === 'cm' ? 'Ej. 38,5' : 'Ej. 385'}
-        className="flex-1 min-w-0 px-3 py-2.5 bg-slate-950 border border-slate-700 focus:border-blue-500 rounded-xl text-sm text-white placeholder-slate-600 outline-none"
-      />
-      <div className="flex p-1 bg-slate-950 border border-slate-700 rounded-xl">
-        {(['cm', 'mm'] as MeasureUnit[]).map((u) => (
-          <button
-            key={u}
-            type="button"
-            onClick={() => onUnit(u)}
-            className={`px-2.5 rounded-lg text-xs font-bold cursor-pointer ${unit === u ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
-          >
-            {u}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MuscleChips({ value, onChange, counts }: { value: ProgressMuscle | null; onChange: (m: ProgressMuscle) => void; counts?: Record<string, number> }) {
-  return (
-    <div className="grid grid-cols-3 gap-1.5">
-      {PROGRESS_MUSCLES.map((m) => (
-        <button
-          key={m}
-          type="button"
-          onClick={() => onChange(m)}
-          className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-            value === m ? 'text-white border-transparent' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-          }`}
-          style={value === m ? { backgroundColor: MUSCLE_COLOR[m] } : undefined}
-        >
-          {value !== m && <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: MUSCLE_COLOR[m] }} />}
-          {m}
-          {counts && counts[m] > 0 && <span className="opacity-70 font-semibold">{counts[m]}</span>}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function EditPhotoDialog({
-  photo,
-  unit,
-  onUnit,
-  onSave,
-  onClose,
-}: {
-  photo: MediaItem;
-  unit: MeasureUnit;
-  onUnit: (u: MeasureUnit) => void;
-  onSave: BodyProgressSectionProps['onUpdate'];
-  onClose: () => void;
-}) {
-  const [takenAt, setTakenAt] = useState(photo.takenAt);
-  const [muscle, setMuscle] = useState<ProgressMuscle>(photo.muscle ?? 'Pecho');
-  const toText = (mm: number | null, u: MeasureUnit) => (mm ? (u === 'cm' ? String(mm / 10).replace('.', ',') : String(mm)) : '');
-  const [measure, setMeasure] = useState(toText(photo.measureMm, unit));
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const changeUnit = (u: MeasureUnit) => {
-    setMeasure(toText(parseMeasure(measure, unit), u));
-    onUnit(u);
-  };
-
-  const save = async () => {
-    const mm = measure.trim() ? parseMeasure(measure, unit) : null;
-    if (measure.trim() && mm === null) {
-      setError('La medida no es válida');
-      return;
-    }
-    setBusy(true);
-    try {
-      await onSave(photo.id, { takenAt, muscle, measureMm: mm });
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar');
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[70] bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-white">Editar foto</h3>
-          <button type="button" onClick={onClose} className="p-1 text-slate-400 hover:text-white cursor-pointer">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <img src={photo.url} alt="" className="w-full max-h-48 object-cover rounded-xl" />
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Fecha de la foto</label>
-          <input
-            type="date"
-            value={takenAt}
-            max={localDay()}
-            onChange={(e) => setTakenAt(e.target.value)}
-            className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white outline-none focus:border-blue-500 [color-scheme:dark]"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Grupo muscular</label>
-          <MuscleChips value={muscle} onChange={setMuscle} />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Medida (opcional)</label>
-          <MeasureInput value={measure} onChange={setMeasure} unit={unit} onUnit={changeUnit} />
-        </div>
-        {error && <p className="text-xs text-red-400">{error}</p>}
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy || !takenAt}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-bold cursor-pointer"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default function BodyProgressSection({ photos, onUpload, onUpdate, onDelete }: BodyProgressSectionProps) {
   const [filter, setFilter] = useState<ProgressMuscle | null>(null);
@@ -188,11 +46,7 @@ export default function BodyProgressSection({ photos, onUpload, onUpdate, onDele
   const [unit, setUnitState] = useState<MeasureUnit>(loadUnit);
   const setUnit = (u: MeasureUnit) => {
     setUnitState(u);
-    try {
-      localStorage.setItem(UNIT_KEY, u);
-    } catch {
-      // sin almacenamiento: solo dura esta sesión
-    }
+    saveUnit(u);
   };
 
   // Formulario de nueva foto
@@ -468,104 +322,17 @@ export default function BodyProgressSection({ photos, onUpload, onUpdate, onDele
 
           {/* Antes / Ahora y gráfico de medidas del músculo elegido */}
           {filter && before && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
-                  {filter}: antes y ahora
-                </h4>
-                {before === after ? (
-                  <p className="text-xs text-slate-400">Solo hay una foto de {filter.toLowerCase()}. Añade otra más adelante para comparar.</p>
-                ) : (
-                  <>
-                    <div role="tablist" aria-label="Modo de comparación" className="flex gap-2">
-                      {([['side', 'Lado a lado'], ['slider', 'Deslizador']] as const).map(([id, text]) => (
-                        <button
-                          key={id}
-                          type="button"
-                          role="tab"
-                          aria-selected={compareMode === id}
-                          onClick={() => setCompareMode(id)}
-                          className={`px-3 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${compareMode === id ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
-                        >
-                          {text}
-                        </button>
-                      ))}
-                    </div>
-                    {compareMode === 'slider' && (before.mime.startsWith('image/') && after.mime.startsWith('image/') ? (
-                      <BeforeAfterSlider
-                        beforeUrl={before.url}
-                        afterUrl={after.url}
-                        beforeLabel={`Antes · ${formatDay(before.takenAt, { day: 'numeric', month: 'short' })}`}
-                        afterLabel={`Ahora · ${formatDay(after.takenAt, { day: 'numeric', month: 'short' })}`}
-                        alt={filter}
-                      />
-                    ) : (
-                      <p className="text-xs text-slate-400">El deslizador solo funciona con fotos, no con vídeos.</p>
-                    ))}
-                    <div className={`grid grid-cols-2 gap-2 ${compareMode === 'slider' ? 'hidden' : ''}`}>
-                      {[
-                        ['Antes', before],
-                        ['Ahora', after],
-                      ].map(([label, p]) => {
-                        const item = p as MediaItem;
-                        return (
-                          <div key={label as string} className="space-y-1.5">
-                            <PhotoTile item={item} alt={`${filter} ${label}`} onDelete={onDelete} onEdit={() => setEditing(item)} />
-                            <div className="text-center">
-                              <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">{label as string}</div>
-                              <div className="text-xs font-bold text-slate-200">{formatDay(item.takenAt, { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                              {item.measureMm && <div className="text-xs text-slate-400">{formatMeasure(item.measureMm, unit)}</div>}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="flex items-center justify-center gap-2 text-xs text-slate-300 bg-slate-950/60 rounded-xl py-2">
-                      <CalendarDays className="h-3.5 w-3.5 text-blue-400" />
-                      {daysBetween(before.takenAt, after.takenAt)} días
-                      {before.measureMm && after.measureMm && (
-                        <>
-                          <ArrowRight className="h-3.5 w-3.5 text-slate-600" />
-                          <span className="font-bold" style={{ color: MUSCLE_COLOR[filter] }}>
-                            {diffLabel(after.measureMm - before.measureMm, unit)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">Medida de {filter.toLowerCase()} ({unit})</h4>
-                {chartData.length >= 2 ? (
-                  <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorBodyMeasure" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={MUSCLE_COLOR[filter]} stopOpacity={0.3} />
-                            <stop offset="95%" stopColor={MUSCLE_COLOR[filter]} stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
-                        <XAxis dataKey="date" stroke="#64748b" fontSize={10} tickLine={false} />
-                        <YAxis stroke="#64748b" fontSize={10} tickLine={false} domain={['dataMin - 1', 'dataMax + 1']} />
-                        <Tooltip
-                          formatter={(v: any) => [`${String(v).replace('.', ',')} ${unit}`, 'Medida']}
-                          contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
-                        />
-                        <Area type="monotone" dataKey="value" stroke={MUSCLE_COLOR[filter]} strokeWidth={2.5} fill="url(#colorBodyMeasure)" dot={{ r: 3 }} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400 py-6 text-center">
-                    {chartData.length === 1 ? 'Con una segunda medida verás aquí la gráfica.' : 'Añade la medida al subir las fotos para ver su evolución.'}
-                  </p>
-                )}
-              </div>
-            </div>
+            <BodyComparison
+              filter={filter}
+              before={before}
+              after={after}
+              chartData={chartData}
+              compareMode={compareMode}
+              setCompareMode={setCompareMode}
+              unit={unit}
+              onDelete={onDelete}
+              onEdit={setEditing}
+            />
           )}
 
           {/* Línea de tiempo */}

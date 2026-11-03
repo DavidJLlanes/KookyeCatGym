@@ -1,4 +1,4 @@
-import { Routine, WorkoutLog, WorkoutExercise, WorkoutSet } from '../types';
+import { Routine, WorkoutLog} from '../types';
 
 // Helper to create a UUID-like random string
 const uuid = () => Math.random().toString(36).substring(2, 11);

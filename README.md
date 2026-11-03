@@ -74,21 +74,40 @@
 
 ```
 src/
-├── AppContent.tsx            Orquestador de la app (pestañas, entrenamiento activo, guardado)
+├── AppContent.tsx            Orquestador (~300 líneas): une los hooks y reparte datos a las pestañas
 ├── components/
+│   ├── app/                  Cabecera, navegación (escritorio/móvil), pestaña Entrenar (banner, historial),
+│   │                         copia de seguridad, celebración al terminar, entrenamiento aleatorio
 │   ├── workout/              Entrenamiento en curso: panel, cabecera, tarjeta/lista, menú, tabla de series,
 │   │                         temporizadores de descanso y de series por tiempo
+│   ├── routines/             Rutinas: tarjeta, carpeta, editor (con una fila por ejercicio) y modal de carpeta
+│   ├── progress/             Progreso: una tarjeta por componente (resumen, ranking, récords, 1RM...) y las
+│   │                         pestañas Músculos y Progresión
+│   ├── library/              Biblioteca: filtros, tarjeta, ficha del ejercicio y creación de ejercicios
+│   ├── body/                 Fotos de progreso físico: comparador antes/después, edición, medidas
 │   ├── muscle/               Mapa muscular: silueta, mini mapa, explorador, balance, sesión por músculos
 │   ├── stats/                Fuerza relativa con historial y estándares ATG
 │   ├── programs/             Tarjeta del programa en marcha y selector de programas
 │   └── share/                Pegatina del entrenamiento sobre una foto
-├── hooks/                    Temporizadores, pantalla activa, preferencias locales
+├── hooks/
+│   ├── useGymData            Datos del usuario: carga inicial, guardado con fusión de tres vías, sincronización
+│   ├── useActiveWorkoutStore Entrenamiento activo: guardado con retardo y borrado fiable
+│   ├── useWorkoutSession     Empezar (libre, por músculos, aleatorio, rutina), finalizar y cancelar
+│   ├── useLibraryActions     Altas, bajas y cambios de rutinas, ejercicios propios e historial
+│   ├── useMediaActions       Subir, actualizar y borrar fotos y vídeos
+│   ├── useDataTransfer       Copia JSON, exportación CSV, restauración e importación de otras apps
+│   ├── useRoutineFolders     Carpetas de rutinas y su orden
+│   ├── useLibraryFilters     Filtros de la biblioteca y carga por lotes
+│   ├── useProgressStats      Estadísticas globales de Progreso
+│   └── …                     Temporizadores, pantalla activa, preferencias locales, diálogo de confirmación
 ├── utils/                    Lógica pura (sin React) y sus tests en utils/__tests__
+│   └── shareCards/           Tarjetas compartibles dibujadas en canvas (entrenamiento y progreso)
 └── data/                     Catálogo, geometría del cuerpo, planes de iniciación y programas
 ```
 
 Criterio: un componente por responsabilidad, la lógica que no necesita React en `utils/` como
-funciones puras (se prueban con `npm test`), y los efectos con temporizador en hooks.
+funciones puras (se prueban con `npm test`), y el estado con efectos (guardado, temporizadores,
+sincronización) en hooks. Ningún fichero de la aplicación pasa de ~500 líneas salvo catálogos de datos.
 
 ## Balance estructural y sus fuentes
 

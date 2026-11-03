@@ -1,4 +1,3 @@
-import { WorkoutLog, Routine } from '../types';
 
 export interface DataRevision {
   version: number;

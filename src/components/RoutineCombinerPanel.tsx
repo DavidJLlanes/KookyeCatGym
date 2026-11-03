@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Routine } from '../types';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
-import { MultiRoutineConfig, combineRoutines, addRoutineToDay, removeRoutineFromDay } from '../utils/routineCombinator';
+import { MultiRoutineConfig, addRoutineToDay, removeRoutineFromDay } from '../utils/routineCombinator';
 
 interface RoutineCombinerPanelProps {
   config: MultiRoutineConfig;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { OneRMHistory, format1RM } from '../utils/oneRMEstimate';
+import { OneRMHistory} from '../utils/oneRMEstimate';
 import { TrendingUp } from 'lucide-react';
 
 interface OneRMChartProps {

@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 
 export interface MediaFile {
   id: string; // SHA256 hash
