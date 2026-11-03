@@ -17,10 +17,7 @@ export default function ExerciseCardThumbnail({ exercise, mode }: ExerciseCardTh
     !exercise.imageUrl.includes('placeholder') &&
     (exercise.imageUrl.startsWith('http') || exercise.imageUrl.startsWith('/'));
 
-  // En la vista de anatomía el cardio no tiene músculo que iluminar (solo un
-  // corazón): con foto disponible se enseña la foto.
-  const zone = detectMuscleZone(exercise);
-  if (hasValidPhoto && (mode === 'photo' || zone === 'cardio')) {
+  if (mode === 'photo' && hasValidPhoto) {
     return (
       <img
         src={getStaticThumbUrl(exercise.imageUrl)}
@@ -36,6 +33,8 @@ export default function ExerciseCardThumbnail({ exercise, mode }: ExerciseCardTh
       />
     );
   }
+
+  const zone = detectMuscleZone(exercise);
 
   return (
     <MuscleZoneImage

@@ -14,11 +14,9 @@ export type MuscleZone =
 // Una imagen fija por zona (no una silueta genérica por grupo muscular
 // completo), para que dos ejercicios del mismo grupo que trabajan porciones
 // distintas (ej. "Press inclinado" vs. "Cruces en polea baja", ambos Pecho)
-// muestren cada uno la zona exacta.
-// Solo las 18 zonas originales tienen imagen .webp propia. Las zonas nuevas se
-// dibujan con la silueta (ver components/MuscleZoneImage.tsx), así que aquí el
-// registro es parcial a propósito: tsc obliga a pasar por ese componente.
-export const MUSCLE_ZONE_IMAGE: Partial<Record<MuscleZone, string>> = {
+// muestren cada uno la zona exacta. Las 25 zonas tienen su .webp en
+// public/muscle-anatomy/ (400×400): al añadir una zona nueva, tsc exige su imagen.
+export const MUSCLE_ZONE_IMAGE: Record<MuscleZone, string> = {
   'upper-chest': '/muscle-anatomy/upper-chest.webp',
   'mid-chest': '/muscle-anatomy/mid-chest.webp',
   'lower-chest': '/muscle-anatomy/lower-chest.webp',
@@ -37,6 +35,13 @@ export const MUSCLE_ZONE_IMAGE: Partial<Record<MuscleZone, string>> = {
   hamstrings: '/muscle-anatomy/hamstrings.webp',
   glutes: '/muscle-anatomy/glutes.webp',
   calves: '/muscle-anatomy/calves.webp',
+  trapezius: '/muscle-anatomy/trapezius.webp',
+  serratus: '/muscle-anatomy/serratus.webp',
+  adductors: '/muscle-anatomy/adductors.webp',
+  abductors: '/muscle-anatomy/abductors.webp',
+  neck: '/muscle-anatomy/neck.webp',
+  'full-body': '/muscle-anatomy/full-body.webp',
+  cardio: '/muscle-anatomy/cardio.webp',
 };
 
 export const MUSCLE_ZONE_LABEL: Record<MuscleZone, string> = {
