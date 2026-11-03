@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { CalendarDays, Check, Play, Settings2, TrendingDown } from 'lucide-react';
-import type { Routine, WorkoutLog } from '../types';
+import type { Exercise, Routine, WorkoutLog } from '../types';
+import MiniBodyMap from './muscle/MiniBodyMap';
+import { routineMuscles } from '../utils/sessionMuscles';
 import { useUserData } from '../context/UserDataContext';
 import { DAY_NAMES, DAY_SHORT, PlannedSession, buildWeek, moveSession, weekStartKey } from '../utils/weekPlan';
 import { isDeloadWeek, weeksUntilDeload } from '../utils/deload';
@@ -11,7 +13,7 @@ import { isDeloadWeek, weeksUntilDeload } from '../utils/deload';
  * esta semana. Aquí también se elige con qué día empieza la semana y se planean
  * las semanas de descarga.
  */
-export default function WeekPlanCard({ routines, logs, onStart }: { routines: Routine[]; logs: WorkoutLog[]; onStart: (r: Routine) => void }) {
+export default function WeekPlanCard({ routines, logs, exercises, onStart }: { routines: Routine[]; logs: WorkoutLog[]; exercises: Exercise[]; onStart: (r: Routine) => void }) {
   const { data, setValue } = useUserData();
   const weekStart = data['week-start'];
   const moves = data['plan-moves'];
@@ -101,6 +103,7 @@ export default function WeekPlanCard({ routines, logs, onStart }: { routines: Ro
                       </button>
                       {open && (
                         <div className="absolute z-20 left-0 top-full mt-1 w-44 p-2 rounded-xl bg-slate-800 border border-slate-700 shadow-2xl space-y-1.5">
+                          <MiniBodyMap sets={routineMuscles(s.routine, exercises)} height={72} className="mx-auto flex justify-center w-full" />
                           {!s.done && (
                             <button type="button" onClick={() => { setMoving(null); onStart(s.routine); }} className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer">
                               <Play className="h-3 w-3" /> Empezar ahora

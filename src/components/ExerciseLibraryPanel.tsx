@@ -5,6 +5,8 @@ import { Exercise, WorkoutLog } from '../types';
 import ExerciseHistoryModal from './ExerciseHistoryModal';
 import { MUSCLE_GROUPS, EQUIPMENT_TYPES, EXERCISE_CATEGORIES, getMuscleColor } from '../data/exerciseMeta';
 import MuscleZoneImage from './muscle/MuscleZoneImage';
+import MuscleExplorer from './muscle/MuscleExplorer';
+import { bodyPartsOf } from '../utils/muscleStats';
 import ExerciseAIVisualizer from './ExerciseAIVisualizer';
 import ExerciseCardThumbnail from './ExerciseCardThumbnail';
 import { useLightbox } from '../context/LightboxContext';
@@ -53,6 +55,9 @@ export default function ExerciseLibraryPanel({
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   // Filtro de segundo nivel: sub-músculo concreto dentro del grupo elegido.
   const [selectedZone, setSelectedZone] = useState<MuscleZone | 'Todas'>('Todas');
+  // Músculo tocado en el mapa: trabajo principal o secundario del ejercicio.
+  const [selectedPart, setSelectedPart] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   // Al cambiar de grupo muscular se reinicia el sub-filtro (las zonas de un
   // grupo no tienen sentido en otro).
@@ -99,11 +104,15 @@ export default function ExerciseLibraryPanel({
     const matchesZone = selectedZone === 'Todas' || zoneByExerciseId.get(ex.id) === selectedZone;
     const matchesFavorite = !onlyFavorites || favoriteSet.has(ex.id);
     const matchesOwned = canDoWithEquipment(ex, myEquipment);
+    if (selectedPart) {
+      const bp = bodyPartsOf(ex);
+      if (!bp.primary.includes(selectedPart) && !bp.secondary.includes(selectedPart)) return false;
+    }
     return matchesSearch && matchesMuscle && matchesEquipment && matchesCategory && matchesZone && matchesFavorite && matchesOwned;
     });
     // Los favoritos van primero (el orden del resto se mantiene)
     return favoriteSet.size > 0 ? [...list.filter((e) => favoriteSet.has(e.id)), ...list.filter((e) => !favoriteSet.has(e.id))] : list;
-  }, [exercises, search, selectedMuscle, selectedEquipment, selectedCategory, selectedZone, onlyFavorites, favoriteSet, myEquipment, zoneByExerciseId]);
+  }, [exercises, search, selectedMuscle, selectedEquipment, selectedCategory, selectedZone, selectedPart, onlyFavorites, favoriteSet, myEquipment, zoneByExerciseId]);
 
   // Renderizado incremental: con 873 ejercicios, montar todas las tarjetas de
   // golpe (imágenes incluidas) hacía la pestaña lenta al abrir y al hacer
@@ -115,7 +124,7 @@ export default function ExerciseLibraryPanel({
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [search, selectedMuscle, selectedEquipment, selectedCategory, selectedZone, onlyFavorites, myEquipment]);
+  }, [search, selectedMuscle, selectedEquipment, selectedCategory, selectedZone, selectedPart, onlyFavorites, myEquipment]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -285,6 +294,22 @@ export default function ExerciseLibraryPanel({
             </div>
           </div>
         )}
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowMap((v) => !v)}
+            aria-expanded={showMap}
+            className="px-3.5 py-1.5 rounded-full text-xs font-medium cursor-pointer border bg-slate-950 border-slate-850 text-slate-300 hover:bg-slate-800"
+          >
+            {showMap ? 'Ocultar mapa muscular' : selectedPart ? 'Mapa muscular (filtro activo)' : 'Buscar en el mapa muscular'}
+          </button>
+          {showMap && (
+            <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+              <MuscleExplorer selected={selectedPart ? [selectedPart] : []} onToggle={(p) => setSelectedPart(p === selectedPart ? null : p)} hint="Toca un músculo para filtrar" />
+            </div>
+          )}
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider w-full mb-1">

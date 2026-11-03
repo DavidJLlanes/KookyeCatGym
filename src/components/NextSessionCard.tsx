@@ -1,11 +1,13 @@
 import React from 'react';
 import { Play, Repeat } from 'lucide-react';
-import type { Routine, WorkoutLog } from '../types';
+import type { Exercise, Routine, WorkoutLog } from '../types';
+import MiniBodyMap from './muscle/MiniBodyMap';
+import { routineMuscles } from '../utils/sessionMuscles';
 import { useUserData } from '../context/UserDataContext';
 import { cycleLetter, rotationRoutines, upcomingInRotation } from '../utils/rotation';
 
 /** "Te toca": la siguiente sesión de la rotación, con un botón para empezarla. */
-export default function NextSessionCard({ routines, logs, onStart }: { routines: Routine[]; logs: WorkoutLog[]; onStart: (r: Routine) => void }) {
+export default function NextSessionCard({ routines, logs, exercises, onStart }: { routines: Routine[]; logs: WorkoutLog[]; exercises: Exercise[]; onStart: (r: Routine) => void }) {
   const { data } = useUserData();
   const config = data.rotation;
   const upcoming = upcomingInRotation(config, routines, logs, 3);
@@ -29,6 +31,7 @@ export default function NextSessionCard({ routines, logs, onStart }: { routines:
             {upcoming.length > 1 && <> · después: {upcoming.slice(1).map((r) => `${letterOf(r)} ${r.name}`).join(', ')}</>}
           </p>
         </div>
+        <MiniBodyMap sets={routineMuscles(next, exercises)} height={64} className="hidden sm:inline-flex" />
       </div>
       <button type="button" onClick={() => onStart(next)} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold cursor-pointer shrink-0">
         <Play className="h-4 w-4" />

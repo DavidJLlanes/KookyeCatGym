@@ -21,6 +21,8 @@ import WeightStackEditor from './WeightStackEditor';
 import { cleanAlternatives, MAX_ALTERNATIVES } from '../utils/exerciseSwap';
 import { formatRest } from '../utils/restTimes';
 import { buildPyramid, PyramidDirection } from '../utils/pyramid';
+import MiniBodyMap from './muscle/MiniBodyMap';
+import { routineMuscles, sessionMuscles } from '../utils/sessionMuscles';
 
 interface RoutinesPanelProps {
   routines: Routine[];
@@ -156,6 +158,8 @@ function RoutineCard({ routine, exercises, onStart, onEdit, onDelete, onMoveUp, 
         </div>
 
         <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{routine.description}</p>
+
+        <MiniBodyMap sets={routineMuscles(routine, exercises)} height={64} className="mx-auto flex justify-center w-full" />
 
         {/* Exercises Preview */}
         <div className="space-y-1.5 pt-2">
@@ -832,6 +836,12 @@ export default function RoutinesPanel({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-1 space-y-4">
                 <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                  {selectedWorkoutExercises.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Músculos que trabaja</div>
+                      <MiniBodyMap sets={sessionMuscles(selectedWorkoutExercises, exercises).planned} height={110} className="flex justify-center w-full" />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nombre de Rutina</label>
                     <input

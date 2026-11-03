@@ -24,7 +24,8 @@ import {
   Users,
   LogOut,
   Share2,
-  Pencil
+  Pencil,
+  Target
 } from 'lucide-react';
 
 import { ActiveWorkout, Exercise, Routine, WorkoutLog, WorkoutExercise, WorkoutSet } from './types';
@@ -56,6 +57,10 @@ import {
   MUSCLE_ZONE_LABEL,
 } from './utils/muscleZone';
 import MuscleZoneImage from './components/muscle/MuscleZoneImage';
+import MuscleSessionModal from './components/muscle/MuscleSessionModal';
+import { pickSessionExercises } from './utils/sessionBuilder';
+import { buildFromExercise } from './utils/workoutBuild';
+import { BODY_PART_LABEL } from './utils/muscleStats';
 import { remapWorkoutList, remapActiveWorkout, remapByExerciseId } from './utils/exerciseIds';
 import { deepEqual, mergeCollection, mergeRecord } from './utils/threeWayMerge';
 import { defaultReps, formatReps } from './utils/holdSets';
@@ -119,6 +124,7 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
   const [workoutShareOpen, setWorkoutShareOpen] = useState(false);
   const [recordsMessage, setRecordsMessage] = useState<string | null>(null);
   const [showRandomWorkoutModal, setShowRandomWorkoutModal] = useState(false);
+  const [showMuscleSession, setShowMuscleSession] = useState(false);
 
   // --- Filtros del entrenamiento aleatorio (todos multiselección; vacío = todos) ---
   const [randomGroups, setRandomGroups] = useState<string[]>([]);
@@ -571,6 +577,27 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
       exercises: [],
     };
     saveActiveWorkoutState(freeWorkout);
+  };
+
+  // Sesión creada tocando músculos en el mapa
+  const handleStartMuscleSession = (parts: string[]) => {
+    if (activeWorkout) {
+      alert('Ya tienes un entrenamiento activo. Finalízalo o cancélalo antes de iniciar uno nuevo.');
+      return;
+    }
+    const picked = pickSessionExercises({ parts, exercises, logs, favorites: userData.favorites, equipment: userData['my-equipment'] });
+    if (picked.length === 0) {
+      alert('No hay ejercicios con tu equipamiento para esos músculos.');
+      return;
+    }
+    const ctx = { logs, rules: progressionRules, stacks: userData['weight-stacks'] };
+    const stamp = Date.now();
+    saveActiveWorkoutState({
+      routineName: `Músculos: ${parts.map((p) => BODY_PART_LABEL[p] ?? p).join(', ')}`,
+      startTime: new Date().toISOString(),
+      exercises: picked.map((ex, i) => buildFromExercise(ex, ctx, stamp + i)),
+    });
+    setShowMuscleSession(false);
   };
 
   // Genera el entrenamiento aleatorio con los filtros elegidos. Ya NO se lanza
@@ -1169,6 +1196,14 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                     Iniciar una Rutina
                   </button>
                   <button
+                    id="btn-start-muscle-workout"
+                    onClick={() => setShowMuscleSession(true)}
+                    className="btn btn-secondary btn-lg flex-1 md:flex-initial"
+                  >
+                    <Target className="text-blue-400" />
+                    Por músculos
+                  </button>
+                  <button
                     id="btn-start-random-workout"
                     onClick={() => setShowRandomWorkoutModal(true)}
                     className="btn btn-secondary btn-lg flex-1 md:flex-initial"
@@ -1179,9 +1214,9 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
                 </div>
               </div>
 
-              <NextSessionCard routines={routines} logs={logs} onStart={handleStartRoutine} />
+              <NextSessionCard routines={routines} logs={logs} exercises={exercises} onStart={handleStartRoutine} />
 
-              <WeekPlanCard routines={routines} logs={logs} onStart={handleStartRoutine} />
+              <WeekPlanCard routines={routines} logs={logs} exercises={exercises} onStart={handleStartRoutine} />
 
               {/* Quick Resume Card of last Workout */}
               {lastWorkout && (
@@ -1728,6 +1763,8 @@ export default function AppContent({ currentUser, onLogout }: AppContentProps) {
           hasRecord={!!recordsMessage}
         />
       )}
+
+      {showMuscleSession && <MuscleSessionModal onClose={() => setShowMuscleSession(false)} onCreate={handleStartMuscleSession} />}
 
       {/* MODAL: Elegir grupo muscular para el Entrenamiento Aleatorio */}
       <AnimatePresence>
