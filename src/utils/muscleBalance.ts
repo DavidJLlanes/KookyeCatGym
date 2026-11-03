@@ -1,6 +1,35 @@
 import { WorkoutLog, Exercise } from '../types';
 
+/** De dónde sale cada conjunto de ratios. */
+export type BalanceSource = 'general' | 'poliquin' | 'classic';
+
+export interface BalanceSourceInfo {
+  id: BalanceSource;
+  label: string;
+  /** Atribución y matices: qué es de la fuente y qué añade la app. */
+  note: string;
+}
+
+export const BALANCE_SOURCES: BalanceSourceInfo[] = [
+  {
+    id: 'poliquin',
+    label: 'Charles Poliquin',
+    note: 'Ratios «basados en las enseñanzas de Poliquin» (smartraining.substack.com). La fuente da el valor; el margen de ±10 % en 1:1 y ±0,05 en el 75 % lo añade la app. El cuarto ratio de esa fuente (rotadores externos/internos del hombro) no se calcula porque no hay ejercicios comparables en la biblioteca.',
+  },
+  {
+    id: 'classic',
+    label: 'Ratios clásicos (OPEX)',
+    note: 'Peso muerto ≈ 125 % de la sentadilla trasera y sentadilla frontal ≈ 85 % de la trasera (OPEX Fitness). El margen alrededor de esos valores lo añade la app.',
+  },
+  {
+    id: 'general',
+    label: 'Rangos orientativos generales',
+    note: 'Rangos habituales en entrenamiento de fuerza, sin una fuente única. Úsalos como guía, no como norma.',
+  },
+];
+
 export interface MuscleBalance {
+  source: BalanceSource;
   muscle1: string;
   muscle2: string;
   ratio: number;
@@ -18,7 +47,7 @@ const LOOKBACK_DAYS = 180;
 // El 1RM estimado solo es fiable con series de pocas repeticiones
 const MAX_REPS_FOR_ESTIMATE = 12;
 
-type Lift = 'bench' | 'squat' | 'deadlift' | 'row' | 'ohp' | 'legCurl' | 'legExtension';
+type Lift = 'bench' | 'squat' | 'frontSquat' | 'deadlift' | 'row' | 'ohp' | 'legCurl' | 'legExtension' | 'bicepsCurl' | 'tricepsExt';
 
 interface LiftRule {
   label: string;
@@ -42,6 +71,12 @@ const LIFTS: Record<Lift, LiftRule> = {
     equipment: 'Barra',
     include: /sentadilla|^squat|back squat|squat \(barbell\)/,
     exclude: /salto|hack|frankenstein|velocidad|overhead|dividida|split|lateral|frontal|zercher|rodillas|jefferson|una pierna|banco|pies juntos|cargada|zancada|front|bulgarian|jump/,
+  },
+  frontSquat: {
+    label: 'Sentadilla frontal',
+    equipment: 'Barra',
+    include: /sentadilla frontal|front squat/,
+    exclude: /cargada|bloques|pausa|dividida|split|zercher|overhead/,
   },
   deadlift: {
     label: 'Peso muerto',
@@ -71,9 +106,21 @@ const LIFTS: Record<Lift, LiftRule> = {
     equipment: 'Máquina',
     include: /extension de (piernas|cuadriceps)|leg extension/,
   },
+  bicepsCurl: {
+    label: 'Curl de bíceps con barra',
+    equipment: 'Barra',
+    include: /^curl de biceps con barra( ez)?$|^barbell curl|^ez.bar curl/,
+  },
+  tricepsExt: {
+    label: 'Press francés con barra',
+    equipment: 'Barra',
+    include: /press frances.*barra|rompecraneos|skull ?crusher/,
+    exclude: /declinad|inclinad|fitball|sobre la cabeza|tras nuca/,
+  },
 };
 
 interface RatioRule {
+  source: BalanceSource;
   top: Lift;
   bottom: Lift;
   muscle1: string;
@@ -82,13 +129,19 @@ interface RatioRule {
   maxRatio: number;
 }
 
-// Rangos orientativos habituales de equilibrio estructural
 const RATIOS: RatioRule[] = [
-  { top: 'bench', bottom: 'squat', muscle1: 'Pecho (press de banca)', muscle2: 'Piernas (sentadilla)', minRatio: 0.6, maxRatio: 0.8 },
-  { top: 'deadlift', bottom: 'squat', muscle1: 'Cadena posterior (peso muerto)', muscle2: 'Piernas (sentadilla)', minRatio: 1.0, maxRatio: 1.3 },
-  { top: 'row', bottom: 'bench', muscle1: 'Espalda (remo)', muscle2: 'Pecho (press de banca)', minRatio: 0.7, maxRatio: 1.0 },
-  { top: 'ohp', bottom: 'bench', muscle1: 'Hombros (press militar)', muscle2: 'Pecho (press de banca)', minRatio: 0.5, maxRatio: 0.7 },
-  { top: 'legCurl', bottom: 'legExtension', muscle1: 'Isquiotibiales (curl femoral)', muscle2: 'Cuádriceps (extensión)', minRatio: 0.6, maxRatio: 0.8 },
+  // Poliquin (smartraining.substack.com): pectoral = dorsal 1:1, isquios ≈ 75 % del cuádriceps, bíceps 60-70 % del tríceps
+  { source: 'poliquin', top: 'row', bottom: 'bench', muscle1: 'Espalda (remo)', muscle2: 'Pecho (press de banca)', minRatio: 0.9, maxRatio: 1.1 },
+  { source: 'poliquin', top: 'legCurl', bottom: 'legExtension', muscle1: 'Isquiotibiales (curl femoral)', muscle2: 'Cuádriceps (extensión)', minRatio: 0.7, maxRatio: 0.8 },
+  { source: 'poliquin', top: 'bicepsCurl', bottom: 'tricepsExt', muscle1: 'Bíceps (curl con barra)', muscle2: 'Tríceps (press francés)', minRatio: 0.6, maxRatio: 0.7 },
+  // OPEX: peso muerto 125 % de la sentadilla trasera, frontal 85 %
+  { source: 'classic', top: 'deadlift', bottom: 'squat', muscle1: 'Cadena posterior (peso muerto)', muscle2: 'Piernas (sentadilla)', minRatio: 1.15, maxRatio: 1.35 },
+  { source: 'classic', top: 'frontSquat', bottom: 'squat', muscle1: 'Sentadilla frontal', muscle2: 'Sentadilla trasera', minRatio: 0.8, maxRatio: 0.9 },
+  // Rangos orientativos generales
+  { source: 'general', top: 'bench', bottom: 'squat', muscle1: 'Pecho (press de banca)', muscle2: 'Piernas (sentadilla)', minRatio: 0.6, maxRatio: 0.8 },
+  { source: 'general', top: 'row', bottom: 'bench', muscle1: 'Espalda (remo)', muscle2: 'Pecho (press de banca)', minRatio: 0.7, maxRatio: 1.0 },
+  { source: 'general', top: 'ohp', bottom: 'bench', muscle1: 'Hombros (press militar)', muscle2: 'Pecho (press de banca)', minRatio: 0.5, maxRatio: 0.7 },
+  { source: 'general', top: 'legCurl', bottom: 'legExtension', muscle1: 'Isquiotibiales (curl femoral)', muscle2: 'Cuádriceps (extensión)', minRatio: 0.6, maxRatio: 0.8 },
 ];
 
 export const BALANCE_LIFT_LABELS = Object.values(LIFTS).map((l) => l.label);
@@ -146,6 +199,7 @@ function evaluate(rule: RatioRule, top: { name: string; e1rm: number }, bottom: 
     status = ratio - rule.maxRatio > width / 2 ? 'critical' : 'warning';
   }
   return {
+    source: rule.source,
     muscle1: rule.muscle1,
     muscle2: rule.muscle2,
     ratio: Math.round(ratio * 100) / 100,

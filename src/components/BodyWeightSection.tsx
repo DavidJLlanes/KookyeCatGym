@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ReferenceArea } from 'recharts';
-import { Scale, Target, Trash2, TrendingDown, TrendingUp, Minus, Weight } from 'lucide-react';
+import { Scale, Target, Trash2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import type { Exercise, WorkoutLog } from '../types';
 import { useUserData } from '../context/UserDataContext';
 import { BodyGoal, localDayKey } from '../utils/userData';
-import { goalStatus, liftsRelativeToBodyWeight, removeWeight, totalLiftedKg, upsertWeight, weeklyRateKg } from '../utils/bodyWeight';
+import { goalStatus, removeWeight, upsertWeight, weeklyRateKg } from '../utils/bodyWeight';
 import { formatEsNumber } from '../utils/number';
 import DecimalInput from './DecimalInput';
+import RelativeStrengthCard from './stats/RelativeStrengthCard';
+import AtgStandardsCard from './stats/AtgStandardsCard';
 
 const MODE_LABEL: Record<BodyGoal['mode'], string> = { lose: 'Perder', gain: 'Ganar', hold: 'Mantener' };
 
@@ -36,8 +38,6 @@ export default function BodyWeightSection({ logs, exercises }: { logs: WorkoutLo
 
   const status = useMemo(() => (goal ? goalStatus(entries, goal) : null), [entries, goal]);
   const rate = useMemo(() => weeklyRateKg(entries), [entries]);
-  const relLifts = useMemo(() => liftsRelativeToBodyWeight(logs, exercises, entries).slice(0, 8), [logs, exercises, entries]);
-  const total = useMemo(() => totalLiftedKg(logs, exercises), [logs, exercises]);
 
   const chartData = useMemo(() => entries.map((e) => ({ date: e.date, label: formatDayLabel(e.date), kg: e.kg })), [entries]);
   const [yMin, yMax] = useMemo(() => {
@@ -212,30 +212,8 @@ export default function BodyWeightSection({ logs, exercises }: { logs: WorkoutLo
         )}
       </div>
 
-      {/* Levantamientos relativos y total acumulado */}
-      <div className={card}>
-        <div className="flex items-center gap-2 mb-3">
-          <Weight className="h-4 w-4 text-violet-400" />
-          <h3 className="font-bold text-white text-sm">Fuerza relativa</h3>
-        </div>
-        <div className="mb-3 p-3 bg-slate-950 border border-slate-800 rounded-xl">
-          <div className="text-[11px] font-bold text-slate-500">Todo lo que has levantado</div>
-          <div className="text-xl font-black text-white">{formatEsNumber(total / 1000, 1)} <span className="text-sm text-slate-400">toneladas</span></div>
-        </div>
-        {relLifts.length === 0 ? (
-          <p className="text-xs text-slate-500">Registra tu peso y entrena con carga para ver tu 1RM estimado como múltiplo de tu peso corporal.</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {relLifts.map((l) => (
-              <li key={l.exerciseId} className="flex items-center gap-3 text-sm">
-                <span className="flex-1 min-w-0 truncate text-slate-300">{l.name}</span>
-                <span className="text-xs text-slate-500 shrink-0">{formatEsNumber(l.e1rm, 0)} kg</span>
-                <span className="w-14 text-right font-black text-violet-300 shrink-0">{formatEsNumber(l.ratio, 2)}×</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <RelativeStrengthCard logs={logs} exercises={exercises} entries={entries} />
+      <AtgStandardsCard logs={logs} entries={entries} />
     </div>
   );
 }

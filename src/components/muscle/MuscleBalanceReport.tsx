@@ -1,5 +1,5 @@
-import React from 'react';
-import { MuscleBalance, getBalanceRecommendation, getBalanceStatusColor } from '../../utils/muscleBalance';
+import React, { useState } from 'react';
+import { BALANCE_SOURCES, BalanceSource, MuscleBalance, getBalanceRecommendation, getBalanceStatusColor } from '../../utils/muscleBalance';
 import { AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface MuscleBalanceReportProps {
@@ -7,23 +7,7 @@ interface MuscleBalanceReportProps {
   isEmpty?: boolean;
 }
 
-export default function MuscleBalanceReport({ balances, isEmpty = false }: MuscleBalanceReportProps) {
-  if (isEmpty || balances.length === 0) {
-    return (
-      <div className="p-4 bg-slate-900 rounded-lg border border-slate-800 text-sm text-slate-400 space-y-2">
-        <p className="text-center">Aún no hay datos suficientes para comparar músculos.</p>
-        <p className="text-xs text-slate-500">
-          Se compara tu mejor serie de los últimos 6 meses en ejercicios con barra (press de banca, sentadilla, peso
-          muerto, remo y press militar) y en máquina (curl femoral y extensión de cuádriceps). Registra al menos dos de
-          ellos que formen pareja, por ejemplo press de banca y sentadilla.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {balances.map((balance, idx) => {
+function BalanceCard({ balance }: { balance: MuscleBalance }) {
         const statusIcon =
           balance.status === 'balanced'
             ? CheckCircle
@@ -36,7 +20,6 @@ export default function MuscleBalanceReport({ balances, isEmpty = false }: Muscl
 
         return (
           <div
-            key={idx}
             className={`p-3 rounded-lg border-2 transition-colors ${
               balance.status === 'balanced'
                 ? 'bg-emerald-950/20 border-emerald-500/30'
@@ -106,7 +89,49 @@ export default function MuscleBalanceReport({ balances, isEmpty = false }: Muscl
             </div>
           </div>
         );
-      })}
+}
+
+export default function MuscleBalanceReport({ balances, isEmpty = false }: MuscleBalanceReportProps) {
+  const [picked, setPicked] = useState<BalanceSource | null>(null);
+  if (isEmpty || balances.length === 0) {
+    return (
+      <div className="p-4 bg-slate-900 rounded-lg border border-slate-800 text-sm text-slate-400 space-y-2">
+        <p className="text-center">Aún no hay datos suficientes para comparar músculos.</p>
+        <p className="text-xs text-slate-500">
+          Se compara tu mejor serie de los últimos 6 meses en ejercicios con barra (press de banca, sentadilla, peso
+          muerto, remo y press militar) y en máquina (curl femoral y extensión de cuádriceps). Registra al menos dos de
+          ellos que formen pareja, por ejemplo press de banca y sentadilla.
+        </p>
+      </div>
+    );
+  }
+
+  const present = BALANCE_SOURCES.filter((src) => balances.some((b) => b.source === src.id));
+  const activeId = picked && present.some((p) => p.id === picked) ? picked : present[0].id;
+  const active = present.find((p) => p.id === activeId)!;
+  const visible = balances.filter((b) => b.source === activeId);
+
+  return (
+    <div className="space-y-3">
+      <div role="tablist" aria-label="Fuente de los ratios" className="flex flex-wrap gap-2">
+        {present.map((src) => (
+          <button
+            key={src.id}
+            type="button"
+            role="tab"
+            aria-selected={src.id === activeId}
+            onClick={() => setPicked(src.id)}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer ${src.id === activeId ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
+          >
+            {src.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-slate-500 leading-relaxed">{active.note}</p>
+
+      {visible.map((balance) => (
+        <BalanceCard key={`${balance.source}-${balance.muscle1}-${balance.muscle2}`} balance={balance} />
+      ))}
 
       {/* Legend */}
       <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 space-y-1">
