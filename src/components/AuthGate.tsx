@@ -6,6 +6,7 @@ import { AuthUser } from '../auth';
 import { useLegal } from '../context/LegalContext';
 import LegalFooterLinks from './legal/LegalFooterLinks';
 import { PasskeyOffer } from './PasskeySection';
+import { assetUrl } from '../utils/assetUrl';
 import {
   biometricLabel,
   isPasskeyAvailable,
@@ -145,7 +146,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
         className="w-full max-w-sm"
       >
         <div className="flex flex-col items-center mb-8">
-          <img src="/icon-192.png" alt="KookyeCatGym" className="h-14 w-14 rounded-2xl shadow-lg shadow-blue-500/20 mb-4" />
+          <img src={assetUrl('/icon-192.png')} alt="KookyeCatGym" className="h-14 w-14 rounded-2xl shadow-lg shadow-blue-500/20 mb-4" />
           <div className="flex items-center gap-2">
             <span className="font-black text-white tracking-tight text-2xl">KookyeCatGym</span>
             <span className="px-1.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider text-amber-400 bg-amber-500/15 border border-amber-500/30">

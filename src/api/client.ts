@@ -4,6 +4,7 @@
 import { getAuthToken, hashPassword, setSession, clearSession, AuthUser } from '../auth';
 import type { Exercise, Routine, WorkoutLog } from '../types';
 import type { ProgressionRule } from '../utils/progressionRules';
+import { assetUrl } from '../utils/assetUrl';
 import type { AiTask, AiTaskMap } from '../utils/nutrition/ai';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
@@ -248,8 +249,11 @@ export type MediaTarget =
   | { kind: 'workout'; logId: string; takenAt?: string }
   | { kind: 'progress'; muscle: ProgressMuscle; measureMm?: number | null; takenAt?: string };
 
+// El servidor devuelve «/api/media?h=…»; en una subcarpeta (/gym/) hay que completarla
+const withMediaUrl = (m: MediaItem): MediaItem => ({ ...m, url: assetUrl(m.url) });
+
 export async function getMyMedia(): Promise<MediaItem[]> {
-  return apiCall<MediaItem[]>('media');
+  return (await apiCall<MediaItem[]>('media')).map(withMediaUrl);
 }
 
 // XMLHttpRequest (y no fetch) para poder mostrar el progreso de subida de vídeos
@@ -284,7 +288,7 @@ export function uploadMedia(
       } catch {
         // respuesta no JSON (p. ej. 413 de Nginx)
       }
-      if (xhr.status >= 200 && xhr.status < 300 && data) resolve(data);
+      if (xhr.status >= 200 && xhr.status < 300 && data) resolve(withMediaUrl(data));
       else if (xhr.status === 413) reject(new Error('El archivo es demasiado grande para el servidor.'));
       else reject(new Error(data?.error || `Error de subida (${xhr.status})`));
     };
@@ -306,7 +310,7 @@ export async function updateMedia(
   id: string,
   changes: { takenAt?: string; muscle?: ProgressMuscle; measureMm?: number | null }
 ): Promise<MediaItem> {
-  return apiCall<MediaItem>('media', { method: 'POST', body: { action: 'update', id, ...changes } });
+  return withMediaUrl(await apiCall<MediaItem>('media', { method: 'POST', body: { action: 'update', id, ...changes } }));
 }
 
 // Pasa las fotos del entrenamiento en curso al entrenamiento ya guardado

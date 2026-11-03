@@ -5,7 +5,8 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/',
+    // VITE_BASE=/gym/ para servir la app desde una subcarpeta
+    base: process.env.VITE_BASE ?? '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

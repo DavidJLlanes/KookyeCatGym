@@ -1,7 +1,8 @@
 <?php
 // Router simple para la API
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = str_replace('/api', '', $path);
+// Quita todo hasta «/api» (también si cuelga de una subcarpeta: /gym/api/…)
+$path = preg_replace('#^.*?/api(?=/|$)#', '', $path, 1);
 $path = trim($path, '/');
 
 // Rutas disponibles

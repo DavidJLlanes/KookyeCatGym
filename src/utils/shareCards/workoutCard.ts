@@ -2,6 +2,7 @@ import { WorkoutLog, Exercise } from '../../types';
 import { formatEsCompactKg, formatEsNumber } from '../number';
 import { getMuscleColor } from '../../data/exerciseMeta';
 import { roundedRect, loadImage, drawCircularImage, fitText, FONT_FAMILY } from '../shareCanvas';
+import { assetUrl } from '../assetUrl';
 import { ShareVariant, W, M, USER_PHOTO_SRC, usableImageUrl, formatDur, layoutPills, Pill } from './common';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -115,7 +116,7 @@ export async function renderWorkoutCard(canvas: HTMLCanvasElement, opts: Workout
   // Carga marca + foto + (en full) las miniaturas de cada ejercicio, todo en
   // paralelo. thumbImgs queda alineado por índice con exBlocks.
   const [logo, photo, ...thumbImgs] = await Promise.all([
-    loadImage('/icon-192.png'),
+    loadImage(assetUrl('/icon-192.png')),
     loadImage(USER_PHOTO_SRC),
     ...(variant === 'full'
       ? exBlocks.map((b) => (b.thumbUrl ? loadImage(b.thumbUrl, b.thumbAnon) : Promise.resolve(null)))

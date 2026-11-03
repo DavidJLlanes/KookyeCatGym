@@ -5,6 +5,7 @@ import * as api from '../api/client';
 import { ProgressionRule } from '../utils/progressionRules';
 import { remapWorkoutList, remapActiveWorkout, remapByExerciseId } from '../utils/exerciseIds';
 import { deepEqual, mergeCollection, mergeRecord } from '../utils/threeWayMerge';
+import { assetUrl } from '../utils/assetUrl';
 import { useActiveWorkoutStore, ACTIVE_WORKOUT_DELETE_PENDING_KEY } from './useActiveWorkoutStore';
 
 /**
@@ -28,8 +29,12 @@ export function useGymData() {
   const progressPhotos = useMemo(() => exerciseMedia.filter((m) => m.kind === 'progress'), [exerciseMedia]);
   const displayExercises = useMemo(() => {
     const primaryByExercise = new Map(exerciseOnlyMedia.filter((m) => m.isPrimary).map((m) => [m.exerciseId, m.url]));
-    if (primaryByExercise.size === 0) return exercises;
-    return exercises.map((e) => (primaryByExercise.has(e.id) ? { ...e, imageUrl: primaryByExercise.get(e.id)!, videoUrl: undefined } : e));
+    // Las rutas «/exercises/…» del catálogo se completan con la subcarpeta de la app, si la hay
+    return exercises.map((e) =>
+      primaryByExercise.has(e.id)
+        ? { ...e, imageUrl: primaryByExercise.get(e.id)!, videoUrl: undefined }
+        : { ...e, imageUrl: assetUrl(e.imageUrl), videoUrl: e.videoUrl ? assetUrl(e.videoUrl) : e.videoUrl }
+    );
   }, [exercises, exerciseOnlyMedia]);
 
   // Lo último que este dispositivo vio del servidor (rutinas y entrenamientos).

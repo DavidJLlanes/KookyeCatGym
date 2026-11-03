@@ -2,45 +2,45 @@
   "name": "KookyeCatGym",
   "short_name": "KookyeCat",
   "description": "App de entrenamiento con 1318 ejercicios, rutinas personalizadas y seguimiento de progreso",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#020617",
   "theme_color": "#0f172a",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-192-maskable.png",
+      "src": "icon-192-maskable.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-512-maskable.png",
+      "src": "icon-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-monochrome.png",
+      "src": "icon-monochrome.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "monochrome"
     },
     {
-      "src": "/icon-monochrome-512.png",
+      "src": "icon-monochrome-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "monochrome"
@@ -52,7 +52,7 @@
       "name": "Entrenar",
       "short_name": "Entrenar",
       "description": "Empezar un entrenamiento nuevo",
-      "url": "/?tab=train",
+      "url": "./?tab=train",
       "icons": [
         {
           "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%23083398' width='96' height='96'/><text x='50%' y='50%' font-size='60' text-anchor='middle' dy='.3em'>▶️</text></svg>",
@@ -65,7 +65,7 @@
       "name": "Mis Rutinas",
       "short_name": "Rutinas",
       "description": "Ver mis rutinas de entrenamiento",
-      "url": "/?tab=routines",
+      "url": "./?tab=routines",
       "icons": [
         {
           "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%23083398' width='96' height='96'/><text x='50%' y='50%' font-size='60' text-anchor='middle' dy='.3em'>📋</text></svg>",

@@ -1,11 +1,13 @@
 // Service Worker para Hevy Workout Tracker
 // Permite funcionamiento offline y mejora rendimiento
 
-const CACHE_NAME = 'kookyecatgym-v5';
+// Funciona en la raíz del dominio o en una subcarpeta (p. ej. /gym/): todo cuelga del ámbito del SW
+const BASE = self.registration.scope;
+const CACHE_NAME = 'kookyecatgym-v6';
 const API_CACHE = 'kookyecatgym-api-v2';
 const CACHE_URLS = [
-  '/',
-  '/index.html',
+  BASE,
+  BASE + 'index.html',
 ];
 
 // Instalar service worker
@@ -52,7 +54,7 @@ self.addEventListener('fetch', (event) => {
 
   // Fotos y vídeos propios: los sirve el servidor con caché larga; los vídeos
   // llegan por rangos (206) que la Cache API no admite.
-  if (url.pathname.startsWith('/api/media')) {
+  if (url.pathname.includes('/api/media')) {
     return;
   }
 
@@ -163,8 +165,8 @@ self.addEventListener('push', (event) => {
       body: data.body || '',
       tag: data.tag || 'kookyecatgym',
       renotify: true,
-      icon: '/icon-192.png',
-      badge: '/icon-monochrome.png',
+      icon: BASE + 'icon-192.png',
+      badge: BASE + 'icon-monochrome.png',
       vibrate: [200, 100, 200, 100, 200],
     })
   );
@@ -178,7 +180,7 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of windows) {
         if ('focus' in client) return client.focus();
       }
-      return self.clients.openWindow('/');
+      return self.clients.openWindow(BASE);
     })
   );
 });

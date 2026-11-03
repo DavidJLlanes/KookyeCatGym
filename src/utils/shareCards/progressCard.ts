@@ -1,6 +1,7 @@
 import { formatEsCompactKg, formatEsNumber } from '../number';
 import { getMuscleColor } from '../../data/exerciseMeta';
 import { roundedRect, loadImage, drawCircularImage, fitText, FONT_FAMILY } from '../shareCanvas';
+import { assetUrl } from '../assetUrl';
 import { ShareVariant, W, M, USER_PHOTO_SRC} from './common';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ export async function renderProgressCard(canvas: HTMLCanvasElement, data: Progre
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, CARD_H);
 
-  const [logo, photo] = await Promise.all([loadImage('/icon-192.png'), loadImage(USER_PHOTO_SRC)]);
+  const [logo, photo] = await Promise.all([loadImage(assetUrl('/icon-192.png')), loadImage(USER_PHOTO_SRC)]);
 
   // Marca + logo
   if (logo) {

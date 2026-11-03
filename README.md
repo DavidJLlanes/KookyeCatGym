@@ -175,6 +175,15 @@ VITE_API_BASE=/api          # o https://tu-dominio.com/api
 
 Si no se define, por defecto usa `/api` (mismo origen).
 
+**En una subcarpeta** (p. ej. `https://tu-dominio.com/gym/` con la API en `/gym/api`), compila con:
+
+```bash
+VITE_BASE=/gym/ VITE_API_BASE=/gym/api npm run build
+```
+
+El service worker, el manifiesto, los iconos, las imágenes del catálogo y los medios del servidor
+se ajustan solos a esa subcarpeta, y el router de `server/index.php` acepta cualquier prefijo antes de `/api`.
+
 ## Backend (PHP + SQLite)
 
 El backend está en [`server/`](server/). Súbelo a tu hosting y sírvelo bajo la

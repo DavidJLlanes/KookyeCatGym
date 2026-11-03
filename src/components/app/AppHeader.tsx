@@ -1,4 +1,5 @@
 import AppMenu from '../AppMenu';
+import { assetUrl } from '../../utils/assetUrl';
 import { AppTab, DesktopNav } from './AppNav';
 
 interface AppHeaderProps {
@@ -17,7 +18,7 @@ export default function AppHeader({ username, isAdmin, currentTab, onSelectTab, 
       <div className="max-w-7xl mx-auto safe-x sm:px-6 lg:px-8 min-h-16 py-2 flex items-center justify-between gap-3">
         {/* Logo brand: el nombre se acorta si no cabe, nunca empuja a los botones */}
         <div className="flex min-w-0 items-center gap-2.5">
-          <img src="/icon-192.png" alt="KookyeCatGym" className="h-10 w-10 shrink-0 rounded-xl shadow-lg shadow-blue-500/20" />
+          <img src={assetUrl('/icon-192.png')} alt="KookyeCatGym" className="h-10 w-10 shrink-0 rounded-xl shadow-lg shadow-blue-500/20" />
           <div className="min-w-0 text-left flex items-center gap-1.5">
             <span className="truncate font-black text-white tracking-tight text-lg leading-none">KookyeCatGym</span>
             <span className="hidden min-[400px]:inline shrink-0 px-1.5 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider text-amber-400 bg-amber-500/15 border border-amber-500/30">
